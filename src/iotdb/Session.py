@@ -18,7 +18,6 @@
 import logging
 import struct
 import time
-
 from iotdb.utils.SessionDataSet import SessionDataSet
 
 from thrift.protocol import TBinaryProtocol, TCompactProtocol

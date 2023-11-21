@@ -1,3 +1,4 @@
+
 from iotdb.Session import Session
 from iotdb.utils.IoTDBConstants import TSDataType, TSEncoding, Compressor
 from iotdb.utils.Tablet import Tablet
@@ -10,7 +11,6 @@ port_ = "6667"
 
 def generateColumnMap():
     group_file = "iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv"
-
     with open(group_file, "r") as f:
         lines = f.readlines()
     group_num = 0
@@ -55,7 +55,7 @@ def folderSize(folder_path):
     return size
 
 def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
-    res_file_dir = "./results/result-autoaligned.csv"
+    res_file_dir = "F:/Workspcae/IdeaWorkSpace/IotDBMaster2/iotdbColumnExpr/src/results/result-autoaligned.csv"
     if not os.path.exists(res_file_dir):
         res_df = pd.DataFrame(columns=["dataset", "sample_method", "storage_method", "select_time", "space_cost", "flush_time"])
     else:
@@ -526,17 +526,18 @@ if __name__ == "__main__":
         },
     }
 
-    datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
+    #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
+    datasets = ["Vehicle2"]
     for dataset in datasets:
         param = parameters[dataset]
         dataset_path = os.path.join("dataset", dataset, param["file_dir"])
         v_sample_methods = os.listdir(os.path.join(dataset_path, "v_sample"))
-        h_sample_methods = os.listdir(os.path.join(dataset_path, "h_sample"))
+#        h_sample_methods = os.listdir(os.path.join(dataset_path, "h_sample"))
         v_sample_methods = [p for p in v_sample_methods if p.startswith("v_sample")]
-        h_sample_methods = [p for p in h_sample_methods if p.startswith("h_sample")]
+        #h_sample_methods = [p for p in h_sample_methods if p.startswith("h_sample")]
 
 
-        for sample_method in v_sample_methods + h_sample_methods:
+        for sample_method in v_sample_methods:
             for storage_method in ["aligned", "autoaligned"]:
                 if sample_method == "h_sample2":
                     continue
@@ -551,11 +552,11 @@ if __name__ == "__main__":
                             print(dataset, v_, storage_method, select_time, space_cost / 1000)
 
                     # horizontal
-                    for h_ in h_sample_methods:
-                        if h_ == sample_method:
-                            select_time, space_cost = runDataset_aligned(dataset, os.path.join(dataset_path, "h_sample", h_),
-                                                                         param["time_func"])
-                            print(dataset, h_, storage_method, select_time, space_cost / 1000)
+                    # for h_ in h_sample_methods:
+                    #     if h_ == sample_method:
+                    #         select_time, space_cost = runDataset_aligned(dataset, os.path.join(dataset_path, "h_sample", h_),
+                    #                                                      param["time_func"])
+                    #         print(dataset, h_, storage_method, select_time, space_cost / 1000)
 
                 if storage_method == "autoaligned":
                     port_ = "6668"
@@ -568,13 +569,13 @@ if __name__ == "__main__":
                             print(dataset, v_, storage_method, select_time, space_cost / 1000)
 
                     # horizontal
-                    for h_ in h_sample_methods:
-                        if h_ == sample_method:
-                            select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path, "h_sample", h_),
-                                                                         param["time_func"])
-                            writeToResultFile(dataset, h_, storage_method, select_time, space_cost / 1000)
-                            print(dataset, h_, storage_method, select_time, space_cost / 1000)
-
+                    # for h_ in h_sample_methods:
+                    #     if h_ == sample_method:
+                    #         select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path, "h_sample", h_),
+                    #                                                      param["time_func"])
+                    #         writeToResultFile(dataset, h_, storage_method, select_time, space_cost / 1000)
+                    #         print(dataset, h_, storage_method, select_time, space_cost / 1000)
+                    #
                     clear_grouping_message()
 
 

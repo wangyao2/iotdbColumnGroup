@@ -500,7 +500,7 @@ if __name__ == "__main__":
     dataset_root = "dataset/"
     parameters = {
         "WindTurbine": {
-            "file_dir": "master",
+            "file_dir": "",
             "time_func": 2,
         },
         "Climate": {
@@ -534,13 +534,14 @@ if __name__ == "__main__":
 
     }
 
-    for dataset in parameters:
+    datasets = ["Vehicle2"]
+    for dataset in datasets:
         param = parameters[dataset]
         dataset_path = os.path.join("dataset", dataset, param["file_dir"])
         v_sample_methods = os.listdir(os.path.join(dataset_path, "v_sample"))
-        h_sample_methods = os.listdir(os.path.join(dataset_path, "h_sample"))
+        #h_sample_methods = os.listdir(os.path.join(dataset_path, "h_sample"))
         v_sample_methods = [p for p in v_sample_methods if p.startswith("v_sample")]
-        h_sample_methods = [p for p in h_sample_methods if p.startswith("h_sample")]
+        #h_sample_methods = [p for p in h_sample_methods if p.startswith("h_sample")]
 
         storage_method = "column"
 
@@ -551,12 +552,12 @@ if __name__ == "__main__":
             print(dataset, v_, storage_method, select_time, space_cost/1000)
 
         # horizontal
-        for h_ in h_sample_methods:
-            if h_ == "h_sample2":
-                continue
-            select_time, space_cost = runDataset_column(dataset, os.path.join(dataset_path, "h_sample", h_), param["time_func"])
-            writeToResultFile(dataset, h_, storage_method, select_time, space_cost/1000)
-            print(dataset, h_, storage_method, select_time, space_cost/1000)
+        # for h_ in h_sample_methods:
+        #     if h_ == "h_sample2":
+        #         continue
+        #     select_time, space_cost = runDataset_column(dataset, os.path.join(dataset_path, "h_sample", h_), param["time_func"])
+        #     writeToResultFile(dataset, h_, storage_method, select_time, space_cost/1000)
+        #     print(dataset, h_, storage_method, select_time, space_cost/1000)
 
         storage_method = "aligned"
         # vertical
@@ -566,12 +567,12 @@ if __name__ == "__main__":
             print(dataset, v_, storage_method, select_time, space_cost / 1000)
 
         # horizontal
-        for h_ in h_sample_methods:
-            if h_ == "h_sample2":
-                continue
-            select_time, space_cost = runDataset_aligned(dataset, os.path.join(dataset_path, "h_sample", h_), param["time_func"])
-            writeToResultFile(dataset, h_, storage_method, select_time, space_cost / 1000)
-            print(dataset, h_, storage_method, select_time, space_cost / 1000)
+        # for h_ in h_sample_methods:
+        #     if h_ == "h_sample2":
+        #         continue
+        #     select_time, space_cost = runDataset_aligned(dataset, os.path.join(dataset_path, "h_sample", h_), param["time_func"])
+        #     writeToResultFile(dataset, h_, storage_method, select_time, space_cost / 1000)
+        #     print(dataset, h_, storage_method, select_time, space_cost / 1000)
 
 
 
