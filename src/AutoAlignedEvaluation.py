@@ -366,7 +366,16 @@ def runDataset_aligned(dataset, dataset_path, time_func):
     )
 
     time.sleep(5)
-    space_cost = folderSize(database_file_path)
+    print("start select")
+    select_repeat_time = 3
+    start_select_time = time.time()
+    # for i in range(select_repeat_time):
+    #     session.execute_query_statement(
+    #         "select * from root.sg_al_01.d1"
+    #     )
+    end_select_time = time.time()
+    select_time = (end_select_time - start_select_time) / select_repeat_time
+    space_cost = folderSize("iotdb-server-and-cli/iotdb-server-autoalignment/data/data")
     session.execute_non_query_statement("delete storage group {}".format(storage_group))
     return 0, space_cost
 
@@ -528,6 +537,8 @@ if __name__ == "__main__":
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     datasets = ["Vehicle2"]
+    print("debug")
+    print(datasets)
     for dataset in datasets:
         param = parameters[dataset]
         dataset_path = os.path.join("dataset", dataset, param["file_dir"])
@@ -543,12 +554,13 @@ if __name__ == "__main__":
                     continue
 
                 if storage_method == "aligned":
-                    port_ = "6667"
+                    port_ = "6667"#autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
                     # vertical
                     for v_ in v_sample_methods:
                         if v_ == sample_method:
                             select_time, space_cost = runDataset_aligned(dataset, os.path.join(dataset_path, "v_sample", v_),
                                                                          param["time_func"])
+                            writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
                             print(dataset, v_, storage_method, select_time, space_cost / 1000)
 
                     # horizontal
@@ -559,7 +571,7 @@ if __name__ == "__main__":
                     #         print(dataset, h_, storage_method, select_time, space_cost / 1000)
 
                 if storage_method == "autoaligned":
-                    port_ = "6668"
+                    port_ = "6668"#生成的新数据再重新导入到普通的数据库当中，普通数据库的是6668端口序列
                     # vertical
                     for v_ in v_sample_methods:
                         if v_ == sample_method:
@@ -576,7 +588,7 @@ if __name__ == "__main__":
                     #         writeToResultFile(dataset, h_, storage_method, select_time, space_cost / 1000)
                     #         print(dataset, h_, storage_method, select_time, space_cost / 1000)
                     #
-                    clear_grouping_message()
+                    #clear_grouping_message()
 
 
 
