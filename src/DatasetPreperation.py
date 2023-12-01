@@ -47,6 +47,17 @@ def string_to_timestamp_0(str_time):
     ts = int(time.mktime(dt)) * 1000
     return ts
 
+def string_to_timestamp_5(str_time):
+    if str_time[4] == "-" and str_time[6] == "-":
+        str_time = str_time[:5] + "0" + str_time[5:]
+    if str_time[12] == ":":
+        str_time = str_time[:11] + "0" + str_time[11:]
+    if len(str_time) != 19:
+        str_time = str_time + ":00"
+    dt = time.strptime(str_time, "%Y/%m/%d %H:%M:%S")
+    ts = int(time.mktime(dt)) * 1000
+    return ts
+
 
 def generate_unaligned_timeseries(file_path, noise_rate):
     df = pd.read_csv(file_path)

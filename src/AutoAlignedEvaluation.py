@@ -107,7 +107,10 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
     password_ = "root"
     session = Session(ip, port_, username_, password_, fetch_size=1024, zone_id="UTC+8")
     session.open(False)
-
+    try:
+        session.execute_non_query_statement("delete storage group {}".format(storage_group))
+    finally:
+        pass
 
     try:
         session.set_storage_group(storage_group)
@@ -282,6 +285,7 @@ def runDataset_aligned(dataset, dataset_path, time_func):
     session.open(False)
 
     try:
+        session.execute_non_query_statement("delete storage group {}".format(storage_group))
         session.set_storage_group(storage_group)
     finally:
         pass
@@ -321,6 +325,8 @@ def runDataset_aligned(dataset, dataset_path, time_func):
                 device_data[i, 0] = string_to_timestamp_1(device_data[i, 0])
             elif time_func == 2:
                 device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
+            elif time_func == 5:
+                device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
             else:
                 device_data[i, 0] = int(device_data[i, 0])
 
@@ -515,7 +521,7 @@ if __name__ == "__main__":
         },
         "Vehicle2": {
             "file_dir": "",
-            "time_func": 0,
+            "time_func": 5,
         },
         "Train": {
             "file_dir": "",
@@ -536,7 +542,7 @@ if __name__ == "__main__":
     }
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    datasets = ["Vehicle2"]
+    datasets = ["Train"]
     print("debug")
     print(datasets)
     for dataset in datasets:

@@ -534,7 +534,7 @@ if __name__ == "__main__":
 
     }
 
-    datasets = ["WindTurbine"]
+    datasets = ["Vehicle2"]
     for dataset in datasets:
         param = parameters[dataset]
         dataset_path = os.path.join("dataset", dataset, param["file_dir"])
