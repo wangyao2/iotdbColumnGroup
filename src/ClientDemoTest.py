@@ -94,6 +94,13 @@ def insertIntoAliSeriesWithSQL(nums):
     port_ = "6667"
     session = Session(ip, port_, username_, password_, fetch_size=1024, zone_id="UTC+8")
     session.open(False)
+    try:
+        session.execute_non_query_statement("delete storage group root.ali")
+        time.sleep(2)
+        print("删除存储组完毕")
+    finally:
+        pass
+
     session.execute_non_query_statement(
         "create aligned timeseries root.ali.d1 (s1 float, s2 float, s3 float, s4 float)"
     )
@@ -126,9 +133,13 @@ def insertIntoAliSeriesWithSQL(nums):
         time3 += 5
         time4 += 5
         time5 += 5
+
+    print("5秒后开始刷写")
+    time.sleep(3)
     session.execute_non_query_statement("flush")
-    time.sleep(1)
+    time.sleep(2)
     session.close()
+    print("over")
 
 def insertIntoSingleColWithSQL(nums):
     #不使用对齐的方式将数据插入到时间序列当中
@@ -271,7 +282,8 @@ def insertIntoColumnGroupsSeriesWithSQL(nums):
     session.close()
 
 if __name__ == "__main__":
-    nums = 40000
+    nums = 2
+    insertIntoAliSeriesWithSQL(nums)
     #insertIntoColumnGroupsSeriesWithSQL(40000)#列组模式
     # insertIntoAliSeriesWithSQL(40000)#单组
-    insertIntoSingleColWithSQL(nums)
+    #insertIntoSingleColWithSQL(nums)

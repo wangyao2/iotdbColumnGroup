@@ -267,7 +267,7 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
     end_select_time = time.time()
     select_time = (end_select_time - start_select_time) / select_repeat_time
     space_cost = folderSize(database_file_path)
-    session.execute_non_query_statement("delete storage group {}".format(storage_group))
+    #session.execute_non_query_statement("delete storage group {}".format(storage_group))
     return select_time, space_cost
 
 def runDataset_aligned(dataset, dataset_path, time_func):
@@ -382,7 +382,7 @@ def runDataset_aligned(dataset, dataset_path, time_func):
     end_select_time = time.time()
     select_time = (end_select_time - start_select_time) / select_repeat_time
     space_cost = folderSize("iotdb-server-and-cli/iotdb-server-autoalignment/data/data")
-    session.execute_non_query_statement("delete storage group {}".format(storage_group))
+    #session.execute_non_query_statement("delete storage group {}".format(storage_group))
     return 0, space_cost
 
 def runDataset_column(dataset, dataset_path, time_func):
@@ -542,7 +542,7 @@ if __name__ == "__main__":
     }
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    datasets = ["Train"]
+    datasets = ["opt"]
     print("debug")
     print(datasets)
     for dataset in datasets:
@@ -562,12 +562,12 @@ if __name__ == "__main__":
                 if storage_method == "aligned":
                     port_ = "6667"#autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
                     # vertical
-                    for v_ in v_sample_methods:
-                        if v_ == sample_method:
-                            select_time, space_cost = runDataset_aligned(dataset, os.path.join(dataset_path, "v_sample", v_),
-                                                                         param["time_func"])
-                            writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
-                            print(dataset, v_, storage_method, select_time, space_cost / 1000)
+                    # for v_ in v_sample_methods:
+                    #     if v_ == sample_method:
+                    #         select_time, space_cost = runDataset_aligned(dataset, os.path.join(dataset_path, "v_sample", v_),
+                    #                                                      param["time_func"])
+                    #         writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
+                    #         print(dataset, v_, storage_method, select_time, space_cost / 1000)
 
                     # horizontal
                     # for h_ in h_sample_methods:
@@ -576,7 +576,7 @@ if __name__ == "__main__":
                     #                                                      param["time_func"])
                     #         print(dataset, h_, storage_method, select_time, space_cost / 1000)
 
-                if storage_method == "autoaligned":
+                if storage_method == "autoaligned":#单独运行后面的部分，则可以按照groupcsv的结果，将时间序列按照文件中的输出结果分组存储
                     port_ = "6668"#生成的新数据再重新导入到普通的数据库当中，普通数据库的是6668端口序列
                     # vertical
                     for v_ in v_sample_methods:

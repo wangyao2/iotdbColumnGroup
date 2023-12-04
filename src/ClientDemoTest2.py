@@ -96,6 +96,13 @@ def insertIntoAliSeriesWithSQL(nums):
     port_ = "6667"
     session = Session(ip, port_, username_, password_, fetch_size=1024, zone_id="UTC+8")
     session.open(False)
+    try:
+        session.execute_non_query_statement("delete storage group root.ali")
+        time.sleep(2)
+        print("删除存储组完毕")
+    finally:
+        pass
+
     session.execute_non_query_statement(
         "create aligned timeseries root.ali.d1 (s1 float, s2 float, s3 float)"
     )
@@ -112,13 +119,13 @@ def insertIntoAliSeriesWithSQL(nums):
                 f"insert into root.ali.d1(time,s1, s2) aligned values ({time1},11,21)"
             )
         session.execute_non_query_statement(
-                f"insert into root.ali.d1(time,s3) aligned values ({time2},31)"
+                f"insert into root.ali.d1(time,s1,s3) aligned values ({time2},11,31)"
             )
         session.execute_non_query_statement(
-                f"insert into root.ali.d1(time,s1) aligned values ({time3},12)"
+                f"insert into root.ali.d1(time,s2) aligned values ({time3},12)"
             )
         session.execute_non_query_statement(
-                f"insert into root.ali.d1(time, s3) aligned values ({time4},21)"
+                f"insert into root.ali.d1(time,s1, s3) aligned values ({time4},11,21)"
             )
         session.execute_non_query_statement(
                 f"insert into root.ali.d1(time,s1,s2) aligned values ({time5},11,21)"
@@ -128,9 +135,13 @@ def insertIntoAliSeriesWithSQL(nums):
         time3 += 5
         time4 += 5
         time5 += 5
-    #session.execute_non_query_statement("flush")
-    time.sleep(1)
+    print("5秒后开始刷写")
+    time.sleep(5)
+    session.execute_non_query_statement("flush")
+
     session.close()
+    time.sleep(2)
+    print("over")
 
 def insertIntoSingleColWithSQL(nums):
     #不使用对齐的方式将数据插入到时间序列当中
@@ -318,9 +329,9 @@ def insertIntoWithNULLs():
 
 
 if __name__ == "__main__":
-    nums = 13
-    insertIntoWithNULLs()
+    nums = 2
+    #insertIntoWithNULLs()
     #DeleteStorageGroup()
     #insertIntoColumnGroupsSeriesWithSQL(40000)#列组模式
-    #insertIntoAliSeriesWithSQL(nums)#单组
+    insertIntoAliSeriesWithSQL(nums)#单组
     #insertIntoColumnGroupsSeriesWithSQL(nums)

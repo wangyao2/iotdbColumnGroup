@@ -6,12 +6,11 @@ from iotdb.utils.Tablet import Tablet
 from numpy import printoptions
 from DatasetPreperation import *
 import operator
-# 用来做手动测试
+# 用来做手动测试，从csv当中插入数据，目前测试来看，第一列必须有空值才行
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 
 def runDataset_aligned(dataset, dataset_path, time_func):
-
     file_list = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]
     file_number = len(file_list)
     storage_group = "root.sg_al_01"
@@ -24,6 +23,8 @@ def runDataset_aligned(dataset, dataset_path, time_func):
 
     try:
         session.execute_non_query_statement("delete storage group {}".format(storage_group))
+        time.sleep(2)
+        print("删除存储组完毕")
     finally:
         pass
 
@@ -131,21 +132,23 @@ def runDataset_aligned(dataset, dataset_path, time_func):
             #print(afterbool)
             #Newdata_type_list_ = data_type_list_[0][isnan]
             #Newmeasurements_list_ = measurements_list_[0][isnan]#需要记录nan的坐标
-        print("完成了几行" + str(NoOfLine))
+        print("完成了几行转换" + str(NoOfLine))
         #如果它不是nan的话，我们就从上面拿一个出来
         # measurements_list_ = [local_schema for _ in range(len(values_))]
         # data_type_list_ = [local_data_types[i] for _ in range(len(values_))]  # 非nan的个数
         session.insert_aligned_records(
             device_ids, timestamps_, measurements_list_, data_type_list_, values_
         )
-    session.execute_non_query_statement(
-        "flush"
-    )
+
+    print("完成插入，即将开始刷写")
+    time.sleep(4)
+    session.execute_non_query_statement("flush")
+    time.sleep(2)
     session.close()
-    time.sleep(5)
-    print("start select")
-    select_repeat_time = 3
-    start_select_time = time.time()
+    print("over")
+    return 0, 0
+    #select_repeat_time = 3
+    #start_select_time = time.time()
     # for i in range(select_repeat_time):
     #     session.execute_query_statement(
     #         "select * from root.sg_al_01.d1"
@@ -154,7 +157,7 @@ def runDataset_aligned(dataset, dataset_path, time_func):
     #select_time = (end_select_time - start_select_time) / select_repeat_time
     #space_cost = folderSize("iotdb-server-and-cli/iotdb-server-autoalignment/data/data")
     #session.execute_non_query_statement("delete storage group {}".format(storage_group))
-    return 0, 0
+
 
 
 if __name__ == "__main__":
@@ -167,7 +170,7 @@ if __name__ == "__main__":
         },
         "Climate": {
             "file_dir": "",
-            "time_func": 0,
+            "time_func": 5,
         },
         "Ship": {
             "file_dir": "",
@@ -196,7 +199,7 @@ if __name__ == "__main__":
     }
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    datasets = ["Vehicle2"]
+    datasets = ["opt"]
     print("debug")
     print(datasets)
     for dataset in datasets:
@@ -206,7 +209,6 @@ if __name__ == "__main__":
 #        h_sample_methods = os.listdir(os.path.join(dataset_path, "h_sample"))
         v_sample_methods = [p for p in v_sample_methods if p.startswith("v_sample")]
         #h_sample_methods = [p for p in h_sample_methods if p.startswith("h_sample")]
-
 
         for sample_method in v_sample_methods:
             for storage_method in ["aligned", "autoaligned"]:
