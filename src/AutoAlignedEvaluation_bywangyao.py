@@ -186,11 +186,11 @@ if __name__ == "__main__":
         },
         "Chemistry": {
             "file_dir": "",
-            "time_func": 0,
+            "time_func": 5,
         },
         "Vehicle": {
             "file_dir": "",
-            "time_func": 1,
+            "time_func": 5,
         },
         "opt": {
             "file_dir": "",
@@ -199,7 +199,7 @@ if __name__ == "__main__":
     }
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    datasets = ["opt"]
+    datasets = ["Vehicle2"]
     print("debug")
     print(datasets)
     for dataset in datasets:

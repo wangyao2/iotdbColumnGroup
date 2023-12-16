@@ -282,8 +282,8 @@ def insertIntoColumnGroupsSeriesWithSQL(nums):
     session.close()
 
 if __name__ == "__main__":
-    nums = 2
+    nums = 20
     insertIntoAliSeriesWithSQL(nums)
     #insertIntoColumnGroupsSeriesWithSQL(40000)#列组模式
-    # insertIntoAliSeriesWithSQL(40000)#单组
+    #insertIntoAliSeriesWithSQL(40000)#单组
     #insertIntoSingleColWithSQL(nums)
