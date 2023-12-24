@@ -153,6 +153,8 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
                 device_data[i, 0] = string_to_timestamp_1(device_data[i, 0])
             elif time_func == 2:
                 device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
+            elif time_func == 5:
+                device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
             else:
                 device_data[i, 0] = int(device_data[i, 0])
             # device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
@@ -256,7 +258,7 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
     time.sleep(5)
 
     print("start select")
-    select_repeat_time = 5
+    select_repeat_time = 3
     paths = findPaths(session)
     start_select_time = time.time()
 
@@ -366,7 +368,7 @@ def runDataset_aligned(dataset, dataset_path, time_func):
         session.insert_aligned_records(
             device_ids, timestamps_, measurements_list_, data_type_list_, values_
         )
-
+        #把这里明天换成普通的插入单挑时间序列试试看
     session.execute_non_query_statement(
         "flush"
     )
@@ -375,15 +377,15 @@ def runDataset_aligned(dataset, dataset_path, time_func):
     print("start select")
     select_repeat_time = 3
     start_select_time = time.time()
-    # for i in range(select_repeat_time):
-    #     session.execute_query_statement(
-    #         "select * from root.sg_al_01.d1"
-    #     )
+    for i in range(select_repeat_time):
+        session.execute_query_statement(
+            "select * from root.sg_al_01.d1"
+        )
     end_select_time = time.time()
     select_time = (end_select_time - start_select_time) / select_repeat_time
     space_cost = folderSize("iotdb-server-and-cli/iotdb-server-autoalignment/data/data")
     #session.execute_non_query_statement("delete storage group {}".format(storage_group))
-    return 0, space_cost
+    return select_time, space_cost
 
 def runDataset_column(dataset, dataset_path, time_func):
 
@@ -439,6 +441,8 @@ def runDataset_column(dataset, dataset_path, time_func):
                 device_data[i, 0] = string_to_timestamp_1(device_data[i, 0])
             elif time_func == 2:
                 device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
+            elif time_func == 5:
+                device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
             else:
                 device_data[i, 0] = int(device_data[i, 0])
             # device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
@@ -539,10 +543,14 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 2,
         },
+        "TBM": {
+            "file_dir": "",
+            "time_func": 5,
+        },
     }
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    datasets = ["opt"]
+    datasets = ["Vehicle2"]
     print("debug")
     print(datasets)
     for dataset in datasets:
@@ -562,12 +570,12 @@ if __name__ == "__main__":
                 if storage_method == "aligned":
                     port_ = "6667"#autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
                     # vertical
-                    # for v_ in v_sample_methods:
-                    #     if v_ == sample_method:
-                    #         select_time, space_cost = runDataset_aligned(dataset, os.path.join(dataset_path, "v_sample", v_),
-                    #                                                      param["time_func"])
-                    #         writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
-                    #         print(dataset, v_, storage_method, select_time, space_cost / 1000)
+                    for v_ in v_sample_methods:
+                        if v_ == sample_method:
+                            select_time, space_cost = runDataset_aligned(dataset, os.path.join(dataset_path, "v_sample", v_),
+                                                                         param["time_func"])
+                            writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
+                            print(dataset, v_, storage_method, select_time, space_cost / 1000)
 
                     # horizontal
                     # for h_ in h_sample_methods:

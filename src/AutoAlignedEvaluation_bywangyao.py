@@ -70,6 +70,8 @@ def runDataset_aligned(dataset, dataset_path, time_func):
                 device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
             elif time_func == 2:
                 device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
+            elif time_func == 6:
+                device_data[i, 0] = string_to_timestamp_6(device_data[i, 0])
             else:
                 device_data[i, 0] = int(device_data[i, 0])
 
@@ -168,9 +170,13 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 2,
         },
-        "Climate": {
+        "TBM": {
             "file_dir": "",
             "time_func": 5,
+        },
+        "Climate": {
+            "file_dir": "",
+            "time_func": 6,
         },
         "Ship": {
             "file_dir": "",
@@ -199,7 +205,7 @@ if __name__ == "__main__":
     }
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    datasets = ["Vehicle2"]
+    datasets = ["TBM"]
     print("debug")
     print(datasets)
     for dataset in datasets:
