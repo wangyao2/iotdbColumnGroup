@@ -80,25 +80,45 @@ def compute_flush_time():
     return total_time
 
 def clear_grouping_message():
-    os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv")
-    os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv")
+    if os.path.isfile("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv"):
+        print("分组文件已存在，已删除....")
+        os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv")
+    if os.path.isfile("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv"):
+        os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv")
 
+def DealWithTheCSVToDeleteCommon():
+    #用于删除csv文件末尾的
+    print("解析csv格式")
+    inputfile = "tes.txt"
+    outputfile = "tes2.txt"
+    if os.path.isfile(inputfile):
+        with open(inputfile, 'r') as input_file, open(outputfile, 'w') as output_file:
+            print("正在解析")
+            # 逐行读取原始文件内容
+            for line in input_file:
+                if line.endswith(",\n"):
+                    line = line.rstrip(",\n")
+                    # 将处理后的行写入目标文件
+                    output_file.write(line+"\n")
+                else:
+                    line = line.rstrip(",")
+                    output_file.write(line)
 
 def findPaths(session):
     res = session.execute_query_statement("show timeseries")
     paths = set()
     for ts in res.todf()["timeseries"]:
-        path = "root.sg_autoal_01.d1." + ts.split(".")[3]
+        path = "root.sg_At_01." + ts.split(".")[3]
         paths.add(path)
     return list(paths)
 
 def runDataset_autoaligned(dataset, dataset_path, time_func):
-
+    #按照分组结果，计算数据在分组条件下的空间消耗
     column_map, group_list, single_columns = generateColumnMap()
 
     file_list = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]
     file_number = len(file_list)
-    storage_group = "root.sg_autoal_01"
+    storage_group = "root.sg_At_01"
 
     index = 1
 
@@ -185,7 +205,7 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
     print("------create timeseries starts------")
 
     other_attrs = []
-    device_id = "root.sg_autoal_01.d1"
+    device_id = "root.sg_At_01"
 
     col_info_maps = {}  # information of the column, format is:  [data_type_lst_, encoding_lst_, compressor_lst_]
 
@@ -205,8 +225,8 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
             device_id + ".g{}".format(i), group_list[i], data_types_of_group, encoding_types_of_group, compressor_types_of_group
         )
 
-    # create single time series
-    ts_path_list_of_others = [device_id + "." + attr for attr in single_columns]
+    # create single time series；；；device_id = "root.sg_At_01"
+    ts_path_list_of_others = [device_id + ".gs." + attr for attr in single_columns]
     data_types_of_others = [col_info_maps[m][0] for m in single_columns]
     encoding_types_of_others = [col_info_maps[m][1] for m in single_columns]
     compressor_types_of_others = [col_info_maps[m][2] for m in single_columns]
@@ -239,7 +259,7 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
                 if column_map[measurement] == -1:
                     # single
                     session.insert_record(
-                        device_id, timestamps_[time_order], [measurement], [col_type], [v]
+                        device_id + ".gs", timestamps_[time_order], [measurement], [col_type], [v]
                     )
                 else:
                     # print(device_id + ".g{}".format(column_map[measurement]), timestamps_[time_order], [measurement], [col_type], [v])
@@ -273,7 +293,7 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
     return select_time, space_cost
 
 def runDataset_aligned(dataset, dataset_path, time_func):
-
+    #制作分组做结果
     file_list = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]
     file_number = len(file_list)
     storage_group = "root.sg_al_01"
@@ -361,19 +381,52 @@ def runDataset_aligned(dataset, dataset_path, time_func):
         values_ = (data_all[i].tolist())
         if len(values_[0]) < 1:
             continue
-
+        #更换了新的，确保插入的数据当中空值是没有被填充的
         measurements_list_ = [local_schema for _ in range(len(values_))]
-        data_type_list_ = [local_data_types[i] for _ in range(len(values_))]
-        device_ids = ["root.sg_al_01.d1" for _ in range(len(values_))]
+        data_type_list_ = [local_data_types[i] for _ in range(len(values_))]#非nan的个数
+        device_ids = ["root.sg_al_01.d1" for _ in range(len(values_))]#不用动
+
+        #如果我增加这一段空值处理的话，方师兄的样例程序就没法正常输出结果，没法产生那个group.csv文件
+        NoOfLine = 0
+        for oneline in values_:
+            #oneline 是个一位数组
+            isnan = np.isnan(oneline).tolist() #true和false的数组
+            isANum = [not x for x in isnan]
+
+            oneMeasurement = np.array(measurements_list_[NoOfLine])
+            afterboolMeasure = oneMeasurement[isANum]
+            afterboolMeasure1 = afterboolMeasure.tolist()
+            measurements_list_[NoOfLine] = afterboolMeasure1
+
+            oneDataType = np.array(data_type_list_[NoOfLine])
+            afterboolDataTpye = oneDataType[isANum].tolist()
+            data_type_list_[NoOfLine] = afterboolDataTpye
+
+            oneValues = np.array(values_[NoOfLine])
+            afterboolonevalues = oneValues[isANum].tolist()
+            values_[NoOfLine] = afterboolonevalues
+
+            NoOfLine = NoOfLine + 1  # 行号自增1
+            #print(oneMeasurement)
+            #print(afterbool)
+            #Newdata_type_list_ = data_type_list_[0][isnan]
+            #Newmeasurements_list_ = measurements_list_[0][isnan]#需要记录nan的坐标
+        print("完成了几行转换" + str(NoOfLine))
+        #如果它不是nan的话，我们就从上面拿一个出来
+        # measurements_list_ = [local_schema for _ in range(len(values_))]
+        # data_type_list_ = [local_data_types[i] for _ in range(len(values_))]  # 非nan的个数
         session.insert_aligned_records(
             device_ids, timestamps_, measurements_list_, data_type_list_, values_
         )
-        #把这里明天换成普通的插入单挑时间序列试试看
+
+    print("完成插入，使用，即将开始刷写")
+    time.sleep(2)
+
     session.execute_non_query_statement(
         "flush"
     )
 
-    time.sleep(5)
+    time.sleep(3)
     print("start select")
     select_repeat_time = 3
     start_select_time = time.time()
@@ -553,6 +606,12 @@ if __name__ == "__main__":
     datasets = ["Vehicle2"]
     print("debug")
     print(datasets)
+    try:
+        clear_grouping_message()
+    finally:
+        pass
+
+    print("尝试删除分组文件完毕---，开始写入数据。")
     for dataset in datasets:
         param = parameters[dataset]
         dataset_path = os.path.join("dataset", dataset, param["file_dir"])
@@ -602,7 +661,7 @@ if __name__ == "__main__":
                     #         writeToResultFile(dataset, h_, storage_method, select_time, space_cost / 1000)
                     #         print(dataset, h_, storage_method, select_time, space_cost / 1000)
                     #
-                    #clear_grouping_message()
+
 
 
 

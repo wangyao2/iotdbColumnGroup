@@ -342,8 +342,23 @@ def insertIntoWithNULLs():
 
 if __name__ == "__main__":
     nums = 300
+    print("解析csv格式")
+    inputfile = "tes.txt"
+    outputfile = "tes2.txt"
+    if os.path.isfile(inputfile):
+        with open(inputfile, 'r') as input_file, open(outputfile, 'w') as output_file:
+            print("正在解析")
+            # 逐行读取原始文件内容
+            for line in input_file:
+                if line.endswith(",\n"):
+                    line = line.rstrip(",\n")
+                    # 将处理后的行写入目标文件
+                    output_file.write(line+"\n")
+                else:
+                    line = line.rstrip(",")
+                    output_file.write(line)
     # insertIntoWithNULLs()
     # DeleteStorageGroup()
     # insertIntoColumnGroupsSeriesWithSQL(40000)#列组模式
-    insertIntoAliSeriesWithSQL(nums)  # 单组
+    #insertIntoAliSeriesWithSQL(nums)  # 单组
     # insertIntoColumnGroupsSeriesWithSQL(nums)

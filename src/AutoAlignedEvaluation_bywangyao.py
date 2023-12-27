@@ -160,6 +160,13 @@ def runDataset_aligned(dataset, dataset_path, time_func):
     #space_cost = folderSize("iotdb-server-and-cli/iotdb-server-autoalignment/data/data")
     #session.execute_non_query_statement("delete storage group {}".format(storage_group))
 
+def clear_grouping_message():
+    if os.path.isfile("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv"):
+        print("分组文件已存在，已删除....")
+        os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv")
+    if os.path.isfile("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv"):
+        os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv")
+
 
 
 if __name__ == "__main__":
@@ -176,7 +183,7 @@ if __name__ == "__main__":
         },
         "Climate": {
             "file_dir": "",
-            "time_func": 6,
+            "time_func": 5,
         },
         "Ship": {
             "file_dir": "",
@@ -204,9 +211,15 @@ if __name__ == "__main__":
         },
     }
 
+    try:
+        clear_grouping_message()
+    finally:
+        pass
+    #只包含了数据写入程序
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    datasets = ["TBM"]
-    print("debug")
+    # datasets = ["Climate", "Vehicle2", "opt","Chemistry","TBM","TBM2","TBM3"]
+    datasets = ["opt"]
+    print("只导入数据，生成分组结果")
     print(datasets)
     for dataset in datasets:
         param = parameters[dataset]
