@@ -1,4 +1,3 @@
-import numpy as np
 
 from iotdb.Session import Session
 from iotdb.utils.IoTDBConstants import TSDataType, TSEncoding, Compressor
@@ -6,14 +5,117 @@ from iotdb.utils.Tablet import Tablet
 from numpy import printoptions
 from DatasetPreperation import *
 import operator
-# 用来做手动测试，从csv当中插入数据，目前测试来看，第一列必须有空值才行
+
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 
-def runDataset_aligned(dataset, dataset_path, time_func):
+def generateColumnMap():
+    group_file = "iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv"
+    with open(group_file, "r") as f:
+        lines = f.readlines()
+    group_num = 0
+    column_map = {}
+    single_columns = []
+    for line in lines:
+        line = line.replace("\n", "")
+        check_new_group_flag = False
+        cols = line.split(",")
+        if len(cols) == 1:
+            col = cols[0]
+            if col not in column_map:
+                single_columns.append(col)
+                column_map[col] = -1
+            continue
+        for col in cols:
+            if col not in column_map:
+                column_map[col] = group_num
+                check_new_group_flag = True
+        if check_new_group_flag:
+            group_num += 1
+
+    group_list = []
+    for i in range(group_num):
+        group_list.append([])
+
+    for col in column_map:
+        if column_map[col] >= 0:
+            group_list[column_map[col]].append(col)
+    return column_map, group_list, single_columns
+
+def folderSize(folder_path):
+    # assign size
+    size = 0
+
+    # get size
+    for path, dirs, files in os.walk(folder_path):
+        for f in files:
+            fp = os.path.join(path, f)
+            size += os.path.getsize(fp)
+
+    return size
+
+def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
+    res_file_dir = "F:/Workspcae/IdeaWorkSpace/IotDBMaster2/iotdbColumnExpr/src/results/result-autoaligned.csv"
+    if not os.path.exists(res_file_dir):
+        res_df = pd.DataFrame(columns=["dataset", "sample_method", "storage_method", "select_time", "space_cost", "flush_time"])
+    else:
+        res_df = pd.read_csv(res_file_dir)
+
+    if storage_method == "autoaligned":
+        flush_time = compute_flush_time()
+    res_df.loc[res_df.shape[0]] = [dataset, sample_method, storage_method, select_time, space_cost, flush_time]
+    res_df.to_csv(res_file_dir, index=False)
+
+def compute_flush_time():
+    flush_file_path = "iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv"
+    total_time = 0
+    with open(flush_file_path, "r") as f:
+        lines = f.readlines()
+    for line in lines:
+        line = line.replace("\n", "")
+        elements = line.split(" ")
+        time_= float(elements[-1][:-1])
+        total_time += time_
+    return total_time
+
+def clear_grouping_message():
+    if os.path.isfile("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv"):
+        print("分组文件已存在，已删除....")
+        os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv")
+    if os.path.isfile("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv"):
+        os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv")
+
+def DealWithTheCSVToDeleteCommon():
+    #用于删除csv文件末尾的
+    print("解析csv格式")
+    inputfile = "tes.txt"
+    outputfile = "tes2.txt"
+    if os.path.isfile(inputfile):
+        with open(inputfile, 'r') as input_file, open(outputfile, 'w') as output_file:
+            print("正在解析")
+            # 逐行读取原始文件内容
+            for line in input_file:
+                if line.endswith(",\n"):
+                    line = line.rstrip(",\n")
+                    # 将处理后的行写入目标文件
+                    output_file.write(line+"\n")
+                else:
+                    line = line.rstrip(",")
+                    output_file.write(line)
+
+def findPaths(session):
+    res = session.execute_query_statement("show timeseries")
+    paths = set()
+    for ts in res.todf()["timeseries"]:
+        path = "root.sg_At_01." + ts.split(".")[3]
+        paths.add(path)
+    return list(paths)
+
+def runDataset_column(dataset, dataset_path, time_func):
+
     file_list = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]
     file_number = len(file_list)
-    storage_group = "root.sg_al_01"
+    storage_group = "root.sg_cl_01"
     index = 1
     ip = "127.0.0.1"
     username_ = "root"
@@ -66,16 +168,15 @@ def runDataset_aligned(dataset, dataset_path, time_func):
                 device_data[i, 0] = string_to_timestamp_0(device_data[i, 0])
             elif time_func == 1:
                 device_data[i, 0] = string_to_timestamp_1(device_data[i, 0])
-            elif time_func == 5:
-                device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
             elif time_func == 2:
                 device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
-            elif time_func == 6:
-                device_data[i, 0] = string_to_timestamp_6(device_data[i, 0])
+            elif time_func == 5:
+                device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
             else:
                 device_data[i, 0] = int(device_data[i, 0])
+            # device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
 
-        if dataset == "WindTurbine" or dataset == "opt":
+        if dataset == "WindTurbine" or dataset == "opd":
             if local_schema[0] == "wfid" + str(index) or local_schema[1] == "wtid" + str(index):
                 for i in range(len(device_data[:, 1])):
                     device_data[i, 1] = str(device_data[i, 1])
@@ -90,9 +191,12 @@ def runDataset_aligned(dataset, dataset_path, time_func):
     data_type_lst_ = global_data_type
     encoding_lst_ = [TSEncoding.PLAIN for _ in range(len(data_type_lst_))]
     compressor_lst_ = [Compressor.SNAPPY for _ in range(len(data_type_lst_))]
+    ts_path_lst_ = []
+    for mesurement in measurements_lst_:
+        ts_path_lst_.append("root.sg_cl_01.d1." + mesurement)
 
-    session.create_aligned_time_series(
-        "root.sg_al_01.d1", measurements_lst_, data_type_lst_, encoding_lst_, compressor_lst_
+    session.create_multi_time_series(
+        ts_path_lst_, data_type_lst_, encoding_lst_, compressor_lst_
     )
 
     for i in range(len(data_all)):
@@ -107,7 +211,7 @@ def runDataset_aligned(dataset, dataset_path, time_func):
 
         measurements_list_ = [local_schema for _ in range(len(values_))]
         data_type_list_ = [local_data_types[i] for _ in range(len(values_))]#非nan的个数
-        device_ids = ["root.sg_al_01.d1" for _ in range(len(values_))]#不用动
+        device_ids = ["root.sg_cl_01.d1" for _ in range(len(values_))]
 
         #如果我增加这一段空值处理的话，方师兄的样例程序就没法正常输出结果，没法产生那个group.csv文件
         NoOfLine = 0
@@ -138,65 +242,26 @@ def runDataset_aligned(dataset, dataset_path, time_func):
         #如果它不是nan的话，我们就从上面拿一个出来
         # measurements_list_ = [local_schema for _ in range(len(values_))]
         # data_type_list_ = [local_data_types[i] for _ in range(len(values_))]  # 非nan的个数
-        session.insert_aligned_records(
+        session.insert_records(
             device_ids, timestamps_, measurements_list_, data_type_list_, values_
         )
 
-    print("完成插入，即将开始刷写")
-    time.sleep(1)
-    session.execute_non_query_statement("flush")
-    time.sleep(1)
-    session.close()
-    print("over")
-    return 0, 0
-    #select_repeat_time = 3
-    #start_select_time = time.time()
-    # for i in range(select_repeat_time):
-    #     session.execute_query_statement(
-    #         "select * from root.sg_al_01.d1"
-    #     )
-    #end_select_time = time.time()
-    #select_time = (end_select_time - start_select_time) / select_repeat_time
-    #space_cost = folderSize("iotdb-server-and-cli/iotdb-server-autoalignment/data/data")
+    print("start flush")
+    session.execute_non_query_statement(
+        "flush"
+    )
+
+    time.sleep(3)
+    print("start select")
+    start_select_time = time.time()
+    session.execute_query_statement(
+        "select * from root.sg_cl_01.d1"
+    )
+    end_select_time = time.time()
+    select_time = end_select_time - start_select_time
+    space_cost = folderSize(database_file_path)
     #session.execute_non_query_statement("delete storage group {}".format(storage_group))
-
-def clear_grouping_message():
-    if os.path.isfile("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv"):
-        print("分组文件已存在，已删除....")
-        os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv")
-    #if os.path.isfile("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv"):
-        #os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv")
-
-
-def compute_flush_time():
-    flush_file_path = "iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv"
-    total_time = 0
-    with open(flush_file_path, "r") as f:
-        lines = f.readlines()
-    for line in lines:
-        line = line.replace("\n", "")
-        elements = line.split(" ")
-        time_= float(elements[-1][:-1])
-        total_time += time_
-    return total_time
-
-def DealWithTheCSVToDeleteCommon():
-    #用于删除csv文件末尾的
-    print("解析csv格式")
-    inputfile = "tes.txt"
-    outputfile = "tes2.txt"
-    if os.path.isfile(inputfile):
-        with open(inputfile, 'r') as input_file, open(outputfile, 'w') as output_file:
-            print("正在解析")
-            # 逐行读取原始文件内容
-            for line in input_file:
-                if line.endswith(",\n"):
-                    line = line.rstrip(",\n")
-                    # 将处理后的行写入目标文件
-                    output_file.write(line+"\n")
-                else:
-                    line = line.rstrip(",")
-                    output_file.write(line)
+    return select_time, space_cost
 
 
 if __name__ == "__main__":
@@ -253,16 +318,17 @@ if __name__ == "__main__":
         },
     }
 
+    #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
+    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
+    datasets = ["TBM2"]
+    print("debug")
+    print(datasets)
     try:
         clear_grouping_message()
     finally:
         pass
-    #只包含了数据写入程序
-    #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
-    datasets = ["TBM2"]
-    print("只导入数据，生成分组结果")
-    print(datasets)
+
+    print("尝试删除分组文件完毕---，开始写入数据。")
     for dataset in datasets:
         param = parameters[dataset]
         dataset_path = os.path.join("dataset", dataset, param["file_dir"])
@@ -271,17 +337,18 @@ if __name__ == "__main__":
         v_sample_methods = [p for p in v_sample_methods if p.startswith("v_sample")]
         #h_sample_methods = [p for p in h_sample_methods if p.startswith("h_sample")]
 
+
         for sample_method in v_sample_methods:
-            for storage_method in ["aligned", "autoaligned"]:
+            for storage_method in ["singcolumn"]:
                 if sample_method == "h_sample2":
                     continue
 
-                if storage_method == "aligned":
-                    port_ = "6667"#autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
+                if storage_method == "singcolumn":
+                    port_ = "6668"#autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
                     # vertical
                     for v_ in v_sample_methods:
                         if v_ == sample_method:
-                            select_time, space_cost = runDataset_aligned(dataset, os.path.join(dataset_path, "v_sample", v_),
+                            select_time, space_cost = runDataset_column(dataset, os.path.join(dataset_path, "v_sample", v_),
                                                                          param["time_func"])
-                            #writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
+                            writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
                             print(dataset, v_, storage_method, select_time, space_cost / 1000)

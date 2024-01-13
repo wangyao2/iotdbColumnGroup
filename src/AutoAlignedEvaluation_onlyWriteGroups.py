@@ -7,10 +7,10 @@ from DatasetPreperation import *
 import operator
 
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
-port_ = "6667"
+port_ = "6668"
 
 def generateColumnMap():
-    group_file = "iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv"
+    group_file = "iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results_exp.csv"
     with open(group_file, "r") as f:
         lines = f.readlines()
     group_num = 0
@@ -62,7 +62,8 @@ def writeToResultFile(dataset, sample_method, storage_method, select_time, space
         res_df = pd.read_csv(res_file_dir)
 
     if storage_method == "autoaligned":
-        flush_time = compute_flush_time()
+        flush_time = 3
+        #flush_time = compute_flush_time()
     res_df.loc[res_df.shape[0]] = [dataset, sample_method, storage_method, select_time, space_cost, flush_time]
     res_df.to_csv(res_file_dir, index=False)
 
@@ -270,17 +271,17 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
         "flush"
     )
 
-    time.sleep(1)
+    time.sleep(5)
 
     print("start select")
     select_repeat_time = 3
     paths = findPaths(session)
     start_select_time = time.time()
 
-    ##启动查询部分代码
-    # for i in range(select_repeat_time):
-    #     for path in paths:
-    #         session.execute_query_statement("SELECT * FROM {}".format(path))
+    #启动查询部分代码
+    for i in range(select_repeat_time):
+        for path in paths:
+            session.execute_query_statement("SELECT * FROM {}".format(path))
 
     end_select_time = time.time()
     select_time = (end_select_time - start_select_time) / select_repeat_time
@@ -296,6 +297,26 @@ if __name__ == "__main__":
         "WindTurbine": {
             "file_dir": "",
             "time_func": 2,
+        },
+        "TBM": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM3": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM4": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM5": {
+            "file_dir": "",
+            "time_func": 5,
         },
         "Climate": {
             "file_dir": "",
@@ -315,27 +336,26 @@ if __name__ == "__main__":
         },
         "Chemistry": {
             "file_dir": "",
-            "time_func": 0,
+            "time_func": 5,
         },
         "Vehicle": {
             "file_dir": "",
-            "time_func": 1,
+            "time_func": 5,
         },
         "opt": {
             "file_dir": "",
             "time_func": 2,
         },
-        "TBM": {
+        "opt2": {
             "file_dir": "",
-            "time_func": 5,
+            "time_func": 2,
         },
     }
 
-    #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    datasets = ["Climate"]
+    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
+    datasets = ["TBM2"]
     print("只做分组后的写入")
     print(datasets)
-    print("尝试删除分组文件完毕---，开始写入数据。")
     for dataset in datasets:
         param = parameters[dataset]
         dataset_path = os.path.join("dataset", dataset, param["file_dir"])
@@ -354,5 +374,5 @@ if __name__ == "__main__":
                         if v_ == sample_method:
                             select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path, "v_sample", v_),
                                                                          param["time_func"])
-                            #writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
+                            writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
                             print(dataset, v_, storage_method, select_time, space_cost / 1000)

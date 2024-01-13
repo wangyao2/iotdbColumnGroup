@@ -76,7 +76,6 @@ def compute_flush_time():
         elements = line.split(" ")
         time_= float(elements[-1][:-1])
         total_time += time_
-
     return total_time
 
 def clear_grouping_message():
@@ -436,7 +435,7 @@ def runDataset_aligned(dataset, dataset_path, time_func):
         )
     end_select_time = time.time()
     select_time = (end_select_time - start_select_time) / select_repeat_time
-    space_cost = folderSize("iotdb-server-and-cli/iotdb-server-autoalignment/data/data")
+    space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
     #session.execute_non_query_statement("delete storage group {}".format(storage_group))
     return select_time, space_cost
 
@@ -568,9 +567,21 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 2,
         },
+        "TBM": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM3": {
+            "file_dir": "",
+            "time_func": 5,
+        },
         "Climate": {
             "file_dir": "",
-            "time_func": 0,
+            "time_func": 5,
         },
         "Ship": {
             "file_dir": "",
@@ -586,30 +597,30 @@ if __name__ == "__main__":
         },
         "Chemistry": {
             "file_dir": "",
-            "time_func": 0,
+            "time_func": 5,
         },
         "Vehicle": {
             "file_dir": "",
-            "time_func": 1,
+            "time_func": 5,
         },
         "opt": {
             "file_dir": "",
             "time_func": 2,
         },
-        "TBM": {
+        "opt2": {
             "file_dir": "",
-            "time_func": 5,
+            "time_func": 2,
         },
     }
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    datasets = ["Vehicle2"]
+    datasets = ["TBM2"]
     print("debug")
     print(datasets)
-    try:
-        clear_grouping_message()
-    finally:
-        pass
+    # try:
+    #     clear_grouping_message()
+    # finally:
+    #     pass
 
     print("尝试删除分组文件完毕---，开始写入数据。")
     for dataset in datasets:
@@ -627,7 +638,7 @@ if __name__ == "__main__":
                     continue
 
                 if storage_method == "aligned":
-                    port_ = "6667"#autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
+                    port_ = "6668"#autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
                     # vertical
                     for v_ in v_sample_methods:
                         if v_ == sample_method:
@@ -643,15 +654,15 @@ if __name__ == "__main__":
                     #                                                      param["time_func"])
                     #         print(dataset, h_, storage_method, select_time, space_cost / 1000)
 
-                if storage_method == "autoaligned":#单独运行后面的部分，则可以按照groupcsv的结果，将时间序列按照文件中的输出结果分组存储
-                    port_ = "6668"#生成的新数据再重新导入到普通的数据库当中，普通数据库的是6668端口序列
-                    # vertical
-                    for v_ in v_sample_methods:
-                        if v_ == sample_method:
-                            select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path, "v_sample", v_),
-                                                                         param["time_func"])
-                            writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
-                            print(dataset, v_, storage_method, select_time, space_cost / 1000)
+                # if storage_method == "autoaligned":#单独运行后面的部分，则可以按照groupcsv的结果，将时间序列按照文件中的输出结果分组存储
+                #     port_ = "6668"#生成的新数据再重新导入到普通的数据库当中，普通数据库的是6668端口序列
+                #     # vertical
+                #     for v_ in v_sample_methods:
+                #         if v_ == sample_method:
+                #             select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path, "v_sample", v_),
+                #                                                          param["time_func"])
+                #             writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
+                #             print(dataset, v_, storage_method, select_time, space_cost / 1000)
 
                     # horizontal
                     # for h_ in h_sample_methods:
