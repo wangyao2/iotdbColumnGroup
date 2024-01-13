@@ -78,10 +78,13 @@ def findPaths(session):
 
 def runDataset_autoaligned(dataset, dataset_path, time_func):
     #按照分组结果，计算数据在分组条件下的空间消耗
+    ##批注，============增加元数据的字典排序，还有单列数据的插入功能
     column_map, group_list, single_columns = generateColumnMap()
     print(column_map)
     print(group_list)
     print(single_columns)
+    # group_list增加一点排序的功能
+    #group_list = [sorted(row) for row in group_list]
 
     file_list = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]
     file_number = len(file_list)
@@ -158,28 +161,14 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
         timestamp_all.append(device_data[:, 0])
         index += 1
 
-    measurements_lst_ = list(global_schema)
-    data_type_lst_ = global_data_type
-    #encoding_lst_ = [TSEncoding.PLAIN for _ in range(len(data_type_lst_))]
-    #compressor_lst_ = [Compressor.SNAPPY for _ in range(len(data_type_lst_))]
-
-    # session.create_aligned_time_series(
-    #     "root.sg_al_01.d1", measurements_lst_, data_type_lst_, encoding_lst_, compressor_lst_
-    # )
-
     # create aligned time series
     for i in range(len(group_list)):
-        data_types_of_group = [TSEncoding.PLAIN for _ in range(len(group_list[i]))]
+        data_types_of_group = [TSDataType.DOUBLE for _ in range(len(group_list[i]))]
         encoding_types_of_group = [TSEncoding.PLAIN for _ in range(len(group_list[i]))]
         compressor_types_of_group = [Compressor.SNAPPY for _ in range(len(group_list[i]))]
         session.create_aligned_time_series(
             storage_group + ".g{}".format(i), group_list[i], data_types_of_group, encoding_types_of_group, compressor_types_of_group
         )
-
-
-    #在这里把data_all化成切片
-    data_all_slice = list()
-    data_all_slice = data_all[1:2]
 
     for i in range(len(data_all)):#data_all就一行，这个for循环一共就只有一次
         print("file number: {}/{}".format(i, len(data_all)))
@@ -210,13 +199,15 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
             device_ids = [storage_group + ".g{}".format(e) for _ in range(len(values_slice))]#设备名称
             #device_ids = ["root.sg_al_01.d1" for _ in range(len(values_slice))]  # 不用动
 
+            theNullList = list()
             # 如果我增加这一段空值处理的话，方师兄的样例程序就没法正常输出结果，没法产生那个group.csv文件
             NoOfLine = 0
             for oneline in values_slice:
                 # oneline 是一行数据，逐个处理每一行数据，将其空值处理掉
                 isnan = np.isnan(oneline).tolist()  # true和false的数组
                 isANum = [not x for x in isnan]
-
+                if all(isnan):#如果全都是nan值的话，那么就记录下来他们的下标
+                    theNullList.append(NoOfLine)
                 oneMeasurement = np.array(measurements_list_[NoOfLine])
                 afterboolMeasure = oneMeasurement[isANum]
                 afterboolMeasure1 = afterboolMeasure.tolist()
@@ -230,6 +221,14 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
                 afterboolonevalues = oneValues[isANum].tolist()
                 values_slice[NoOfLine] = afterboolonevalues
                 NoOfLine = NoOfLine + 1  # 行号自增1
+
+            for e in theNullList:
+                #把null的行全都删除掉
+                del device_ids[e]
+                del timestamps_[e]
+                del measurements_list_[e]
+                del data_type_list_[e]
+                del values_slice[e]
 
             print("完成了几行转换" + str(NoOfLine))
             print("开始按照分组规则划分")
