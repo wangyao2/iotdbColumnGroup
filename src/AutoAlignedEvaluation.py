@@ -579,6 +579,10 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 5,
         },
+        "TBM4": {
+            "file_dir": "",
+            "time_func": 5,
+        },
         "Climate": {
             "file_dir": "",
             "time_func": 5,
@@ -614,7 +618,7 @@ if __name__ == "__main__":
     }
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    datasets = ["TBM2"]
+    datasets = ["TBM4"]
     print("debug")
     print(datasets)
     # try:
