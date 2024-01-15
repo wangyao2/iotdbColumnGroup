@@ -1,3 +1,6 @@
+import math
+import time
+
 import numpy as np
 
 from iotdb.Session import Session
@@ -8,10 +11,10 @@ from DatasetPreperation import *
 import operator
 
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
-port_ = "6668"
+port_ = "6667"
 
 def generateColumnMap():
-    group_file = "iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results_exp.csv"
+    group_file = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\grouping_results_exp.csv"
     with open(group_file, "r") as f:
         lines = f.readlines()
     group_num = 0
@@ -55,7 +58,8 @@ def folderSize(folder_path):
     return size
 
 def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
-    res_file_dir = "F:/Workspcae/IdeaWorkSpace/IotDBMaster2/iotdbColumnExpr/src/results/result-autoaligned.csv"
+    #res_file_dir = "F:/Workspcae/IdeaWorkSpace/IotDBMaster2/iotdbColumnExpr/src/results/result-autoaligned.csv"
+    res_file_dir = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\esult-autoaligned.csv"
     if not os.path.exists(res_file_dir):
         res_df = pd.DataFrame(columns=["dataset", "sample_method", "storage_method", "select_time", "space_cost", "flush_time"])
     else:
@@ -161,14 +165,6 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
         timestamp_all.append(device_data[:, 0])
         index += 1
 
-    # create aligned time series
-    for i in range(len(group_list)):
-        data_types_of_group = [TSDataType.DOUBLE for _ in range(len(group_list[i]))]
-        encoding_types_of_group = [TSEncoding.PLAIN for _ in range(len(group_list[i]))]
-        compressor_types_of_group = [Compressor.SNAPPY for _ in range(len(group_list[i]))]
-        session.create_aligned_time_series(
-            storage_group + ".g{}".format(i), group_list[i], data_types_of_group, encoding_types_of_group, compressor_types_of_group
-        )
 
     for i in range(len(data_all)):#data_all就一行，这个for循环一共就只有一次
         print("file number: {}/{}".format(i, len(data_all)))
@@ -179,6 +175,52 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
         values_ = (data_all[i].tolist())
         if len(values_[0]) < 1:
             continue
+
+        # create single time series and insertInto Singles
+        if len(single_columns) > 0:  # 如果存在单独成组的那些列
+            print("正在处理单列数据存储")
+            ts_path_list_of_others = [storage_group + ".d1." + attr for attr in single_columns]
+            data_types_of_others = [TSDataType.DOUBLE for _ in range(len(single_columns))]
+            encoding_types_of_others = [TSEncoding.PLAIN for _ in range(len(single_columns))]
+            compressor_types_of_others = [Compressor.SNAPPY for _ in range(len(single_columns))]
+            if len(single_columns) != 0:
+                session.create_multi_time_series(
+                    ts_path_list_of_others, data_types_of_others, encoding_types_of_others, compressor_types_of_others
+                )
+            time.sleep(1)
+            # 前面是创建时间序列，后面就是向序列里插入数据
+            notEmpty_device_ids = list()
+            notEmpty_Single_timestamps_ = list()
+            notEmpty_Single_measurements_list_ = list()
+            notEmpty_Single_data_type_list_ = list()
+            notEmpty_Single_values_slice = list()
+            for single_column in single_columns:
+                print("正在处理单列： "+single_column)
+                one_single_index = int(single_column[:-1]) - 1#获取当前是哪一列
+                one_Single_values_Slices = [row[one_single_index] for row in values_] #这一列的数据切片全都拿着
+                for ind in range(len(one_Single_values_Slices)): #把数据切片中为0的数全都过滤掉
+                    if not math.isnan(one_Single_values_Slices[ind]):
+                        notEmpty_device_ids.append(storage_group + ".d1")#1维
+                        notEmpty_Single_values_slice.append([one_Single_values_Slices[ind]])
+                        notEmpty_Single_timestamps_.append(timestamps_[ind])#1维
+                        notEmpty_Single_measurements_list_.append([single_column])
+                        notEmpty_Single_data_type_list_.append([TSDataType.DOUBLE])
+                # 插入一列数据
+                session.insert_records(notEmpty_device_ids,notEmpty_Single_timestamps_,notEmpty_Single_measurements_list_,notEmpty_Single_data_type_list_,notEmpty_Single_values_slice)
+                #np_values_ = np.array(values_)
+
+        # 拿到其中的一列，判断是哪一列
+        # ======前面处理单独一列的那些数据
+
+        # create aligned time series
+        for i in range(len(group_list)):
+            data_types_of_group = [TSDataType.DOUBLE for _ in range(len(group_list[i]))]
+            encoding_types_of_group = [TSEncoding.PLAIN for _ in range(len(group_list[i]))]
+            compressor_types_of_group = [Compressor.SNAPPY for _ in range(len(group_list[i]))]
+            session.create_aligned_time_series(
+                storage_group + ".g{}".format(i), group_list[i], data_types_of_group, encoding_types_of_group,
+                compressor_types_of_group
+            )
 
         for e in range(len(group_list)):#一个分组一个分组的处理写入
             # 按照group_list拿到一个一个slice
@@ -199,15 +241,13 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
             device_ids = [storage_group + ".g{}".format(e) for _ in range(len(values_slice))]#设备名称
             #device_ids = ["root.sg_al_01.d1" for _ in range(len(values_slice))]  # 不用动
 
-            theNullList = list()
             # 如果我增加这一段空值处理的话，方师兄的样例程序就没法正常输出结果，没法产生那个group.csv文件
             NoOfLine = 0
             for oneline in values_slice:
                 # oneline 是一行数据，逐个处理每一行数据，将其空值处理掉
                 isnan = np.isnan(oneline).tolist()  # true和false的数组
                 isANum = [not x for x in isnan]
-                if all(isnan):#如果全都是nan值的话，那么就记录下来他们的下标
-                    theNullList.append(NoOfLine)
+
                 oneMeasurement = np.array(measurements_list_[NoOfLine])
                 afterboolMeasure = oneMeasurement[isANum]
                 afterboolMeasure1 = afterboolMeasure.tolist()
@@ -222,28 +262,36 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
                 values_slice[NoOfLine] = afterboolonevalues
                 NoOfLine = NoOfLine + 1  # 行号自增1
 
-            for e in theNullList:
-                #把null的行全都删除掉
-                del device_ids[e]
-                del timestamps_[e]
-                del measurements_list_[e]
-                del data_type_list_[e]
-                del values_slice[e]
+            notEmpty_device_ids = list()
+            notEmpty_timestamps_ = list()
+            notEmpty_measurements_list_ = list()
+            notEmpty_data_type_list_ = list()
+            notEmpty_values_slice = list()
 
+            for ind in range(len(values_slice)):
+                if values_slice[ind]:#子列表是非空的，去除空行
+                    notEmpty_device_ids.append(device_ids[ind])
+                    notEmpty_timestamps_.append(timestamps_[ind])
+                    notEmpty_measurements_list_.append(measurements_list_[ind])
+                    notEmpty_data_type_list_.append(data_type_list_[ind])
+                    notEmpty_values_slice.append(values_slice[ind])
+
+            print("完成的组数：" + str(e))
             print("完成了几行转换" + str(NoOfLine))
             print("开始按照分组规则划分")
             #可能还得再加一个行过滤，避免全0的行？
             session.insert_aligned_records(
-                device_ids, timestamps_, measurements_list_, data_type_list_, values_slice
+                notEmpty_device_ids, notEmpty_timestamps_, notEmpty_measurements_list_, notEmpty_data_type_list_, notEmpty_values_slice
             )
 
     print("完成插入，即将开始刷写")
     time.sleep(1)
     session.execute_non_query_statement("flush")
-    time.sleep(1)
+    time.sleep(3)
     session.close()
+    space_cost = folderSize(database_file_path)
     print("over")
-    return 0, 0
+    return 0, space_cost
 
 
 if __name__ == "__main__":
@@ -309,7 +357,7 @@ if __name__ == "__main__":
     }
 
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
-    datasets = ["TBM4"]
+    datasets = ["TBM2"]
     print("只做分组后的写入")
     print(datasets)
     for dataset in datasets:
@@ -317,14 +365,12 @@ if __name__ == "__main__":
         dataset_path = os.path.join("dataset", dataset, param["file_dir"])
         v_sample_methods = os.listdir(os.path.join(dataset_path, "v_sample"))
         v_sample_methods = [p for p in v_sample_methods if p.startswith("v_sample")]
-
         for sample_method in v_sample_methods:
-            for storage_method in ["aligned", "autoaligned"]:
+            for storage_method in ["autoaligned"]:
                 if sample_method == "h_sample2":
                     continue
-
                 if storage_method == "autoaligned":#单独运行后面的部分，则可以按照groupcsv的结果，将时间序列按照文件中的输出结果分组存储
-                    port_ = "6668"#生成的新数据再重新导入到普通的数据库当中，普通数据库的是6668端口序列
+                    #port_ = "6667"#生成的新数据再重新导入到普通的数据库当中，普通数据库的是6668端口序列
                     # vertical
                     for v_ in v_sample_methods:
                         if v_ == sample_method:
@@ -332,3 +378,9 @@ if __name__ == "__main__":
                                                                          param["time_func"])
                             writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
                             print(dataset, v_, storage_method, select_time, space_cost / 1000)
+                            time.sleep(2)
+                            space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
+                            print(space_cost)
+                            time.sleep(10)
+                            space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
+                            print(space_cost)

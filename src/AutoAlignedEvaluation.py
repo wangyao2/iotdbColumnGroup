@@ -55,7 +55,7 @@ def folderSize(folder_path):
     return size
 
 def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
-    res_file_dir = "F:/Workspcae/IdeaWorkSpace/IotDBMaster2/iotdbColumnExpr/src/results/result-autoaligned.csv"
+    res_file_dir = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\grouping_results_exp.csv"
     if not os.path.exists(res_file_dir):
         res_df = pd.DataFrame(columns=["dataset", "sample_method", "storage_method", "select_time", "space_cost", "flush_time"])
     else:
@@ -618,7 +618,7 @@ if __name__ == "__main__":
     }
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    datasets = ["TBM4"]
+    datasets = ["TBM2"]
     print("debug")
     print(datasets)
     # try:
@@ -650,7 +650,9 @@ if __name__ == "__main__":
                                                                          param["time_func"])
                             writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
                             print(dataset, v_, storage_method, select_time, space_cost / 1000)
-
+                            time.sleep(2)
+                            space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
+                            print(space_cost)
                     # horizontal
                     # for h_ in h_sample_methods:
                     #     if h_ == sample_method:
