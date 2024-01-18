@@ -76,7 +76,7 @@ def findPaths(session):
     res = session.execute_query_statement("show timeseries")
     paths = set()
     for ts in res.todf()["timeseries"]:
-        path = "root.sg_At_01." + ts.split(".")[3]
+        path = "root.sg_al_01." + ts.split(".")[2]
         paths.add(path)
     return list(paths)
 
@@ -283,15 +283,26 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
             session.insert_aligned_records(
                 notEmpty_device_ids, notEmpty_timestamps_, notEmpty_measurements_list_, notEmpty_data_type_list_, notEmpty_values_slice
             )
-
     print("完成插入，即将开始刷写")
     time.sleep(1)
     session.execute_non_query_statement("flush")
-    time.sleep(3)
+    time.sleep(4)
+
+    print("刷写完成，启动查询start select")
+    select_repeat_time = 3
+    paths = findPaths(session)
+    start_select_time = time.time()
+    for i in range(select_repeat_time):
+        for path in paths:
+            print("执行查询测试")
+            session.execute_query_statement("SELECT * FROM {}".format(path))
+    end_select_time = time.time()
+    select_time = (end_select_time - start_select_time) / select_repeat_time
     session.close()
+    #计算存储空间开销
     space_cost = folderSize(database_file_path)
     print("over")
-    return 0, space_cost
+    return select_time, space_cost
 
 
 if __name__ == "__main__":
@@ -302,11 +313,11 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 2,
         },
-        "TBM": {
+        "TBMM1": {
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2": {
+        "TBMM2": {
             "file_dir": "",
             "time_func": 5,
         },
@@ -354,10 +365,34 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 2,
         },
+        "TBM2_20000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_50000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_80000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_100000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_150000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_200000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
     }
 
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
-    datasets = ["TBM2"]
+    datasets = ["TBM2_80000"]
     print("只做分组后的写入")
     print(datasets)
     for dataset in datasets:

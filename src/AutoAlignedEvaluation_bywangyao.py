@@ -207,11 +207,11 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 2,
         },
-        "TBM": {
+        "TBMM1": {
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2": {
+        "TBMM2": {
             "file_dir": "",
             "time_func": 5,
         },
@@ -251,6 +251,30 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 2,
         },
+        "TBM2_20000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_50000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_80000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_100000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_150000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_200000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
     }
 
     try:
@@ -259,8 +283,8 @@ if __name__ == "__main__":
         pass
     #只包含了数据写入程序
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
-    datasets = ["TBM2"]
+    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBMM2","TBM2_50000"]
+    datasets = ["TBM2_200000"]
     print("只导入数据，生成分组结果")
     print(datasets)
     for dataset in datasets:
