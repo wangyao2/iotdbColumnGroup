@@ -55,7 +55,7 @@ def folderSize(folder_path):
     return size
 
 def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
-    res_file_dir = "F:/Workspcae/IdeaWorkSpace/IotDBMaster2/iotdbColumnExpr/src/results/result-autoaligned.csv"
+    res_file_dir = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\esult-autoaligned.csv"
     if not os.path.exists(res_file_dir):
         res_df = pd.DataFrame(columns=["dataset", "sample_method", "storage_method", "select_time", "space_cost", "flush_time"])
     else:
@@ -115,7 +115,7 @@ def runDataset_column(dataset, dataset_path, time_func):
 
     file_list = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]
     file_number = len(file_list)
-    storage_group = "root.sg_cl_01"
+    storage_group = "root.sg_al_01"
     index = 1
     ip = "127.0.0.1"
     username_ = "root"
@@ -193,7 +193,7 @@ def runDataset_column(dataset, dataset_path, time_func):
     compressor_lst_ = [Compressor.SNAPPY for _ in range(len(data_type_lst_))]
     ts_path_lst_ = []
     for mesurement in measurements_lst_:
-        ts_path_lst_.append("root.sg_cl_01.d1." + mesurement)
+        ts_path_lst_.append("root.sg_al_01.d1." + mesurement)
 
     session.create_multi_time_series(
         ts_path_lst_, data_type_lst_, encoding_lst_, compressor_lst_
@@ -211,7 +211,7 @@ def runDataset_column(dataset, dataset_path, time_func):
 
         measurements_list_ = [local_schema for _ in range(len(values_))]
         data_type_list_ = [local_data_types[i] for _ in range(len(values_))]#非nan的个数
-        device_ids = ["root.sg_cl_01.d1" for _ in range(len(values_))]
+        device_ids = ["root.sg_al_01.d1" for _ in range(len(values_))]
 
         #如果我增加这一段空值处理的话，方师兄的样例程序就没法正常输出结果，没法产生那个group.csv文件
         NoOfLine = 0
@@ -247,6 +247,7 @@ def runDataset_column(dataset, dataset_path, time_func):
         )
 
     print("start flush")
+    time.sleep(1)
     session.execute_non_query_statement(
         "flush"
     )
@@ -255,7 +256,7 @@ def runDataset_column(dataset, dataset_path, time_func):
     print("start select")
     start_select_time = time.time()
     session.execute_query_statement(
-        "select * from root.sg_cl_01.d1"
+        "select * from root.sg_al_01.d1"
     )
     end_select_time = time.time()
     select_time = end_select_time - start_select_time
@@ -316,11 +317,47 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 2,
         },
+        "TBMM1": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBMM2": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_20000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_50000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_80000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_100000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_120000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_150000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_200000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
     }
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
-    datasets = ["TBM2"]
+    datasets = ["Climate"]
     print("debug")
     print(datasets)
     try:
@@ -344,7 +381,7 @@ if __name__ == "__main__":
                     continue
 
                 if storage_method == "singcolumn":
-                    port_ = "6668"#autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
+                    port_ = "6667"#autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
                     # vertical
                     for v_ in v_sample_methods:
                         if v_ == sample_method:

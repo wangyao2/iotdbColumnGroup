@@ -381,6 +381,14 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 5,
         },
+        "TBM2_120000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2_130000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
         "TBM2_150000": {
             "file_dir": "",
             "time_func": 5,
@@ -391,8 +399,8 @@ if __name__ == "__main__":
         },
     }
 
-    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
-    datasets = ["TBM2_80000"]
+    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBM2","TBM3"]
+    datasets = ["TBM2_200000"]
     print("只做分组后的写入")
     print(datasets)
     for dataset in datasets:
@@ -416,6 +424,6 @@ if __name__ == "__main__":
                             time.sleep(2)
                             space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
                             print(space_cost)
-                            time.sleep(10)
+                            time.sleep(3)
                             space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
                             print(space_cost)
