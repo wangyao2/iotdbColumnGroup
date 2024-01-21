@@ -365,6 +365,10 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 2,
         },
+        "TBM2_10000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
         "TBM2_20000": {
             "file_dir": "",
             "time_func": 5,
@@ -400,7 +404,7 @@ if __name__ == "__main__":
     }
 
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBM2","TBM3"]
-    datasets = ["TBM2_200000"]
+    datasets = ["TBM2_120000"]
     print("只做分组后的写入")
     print(datasets)
     for dataset in datasets:
