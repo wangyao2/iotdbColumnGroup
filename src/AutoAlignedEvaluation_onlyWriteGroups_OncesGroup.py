@@ -404,7 +404,7 @@ if __name__ == "__main__":
     }
 
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBM2","TBM3"]
-    datasets = ["TBM2_120000"]
+    datasets = ["Climate"]
     print("只做分组后的写入")
     print(datasets)
     for dataset in datasets:
