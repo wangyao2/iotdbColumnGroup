@@ -271,7 +271,7 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2_150000": {
+        "TBM2_120000": {
             "file_dir": "",
             "time_func": 5,
         },
@@ -287,8 +287,8 @@ if __name__ == "__main__":
         pass
     #只包含了数据写入程序
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBMM2","TBM2_50000"]
-    datasets = ["Climate"]
+    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBMM2","TBM2_120000"]
+    datasets = ["TBMM2"]
     print("只导入数据，生成分组结果")
     print(datasets)
     for dataset in datasets:

@@ -286,8 +286,9 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
     print("完成插入，即将开始刷写")
     time.sleep(1)
     session.execute_non_query_statement("flush")
-    time.sleep(4)
-
+    time.sleep(5)
+    session.execute_non_query_statement("merge")
+    time.sleep(3)
     print("刷写完成，启动查询start select")
     select_repeat_time = 3
     paths = findPaths(session)
@@ -403,8 +404,8 @@ if __name__ == "__main__":
         },
     }
 
-    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBM2","TBM3"]
-    datasets = ["Climate"]
+    # datasets = ["TBM2_120000","opt2","Climate", "Vehicle2", "TBMM1", "TBMM2","TBM2","TBM3"]
+    datasets = ["TBM2_120000"]
     print("只做分组后的写入")
     print(datasets)
     for dataset in datasets:
@@ -413,10 +414,10 @@ if __name__ == "__main__":
         v_sample_methods = os.listdir(os.path.join(dataset_path, "v_sample"))
         v_sample_methods = [p for p in v_sample_methods if p.startswith("v_sample")]
         for sample_method in v_sample_methods:
-            for storage_method in ["autoaligned"]:
+            for storage_method in ["QueryTime"]:
                 if sample_method == "h_sample2":
                     continue
-                if storage_method == "autoaligned":#单独运行后面的部分，则可以按照groupcsv的结果，将时间序列按照文件中的输出结果分组存储
+                if storage_method == "QueryTime":#单独运行后面的部分，则可以按照groupcsv的结果，将时间序列按照文件中的输出结果分组存储
                     #port_ = "6667"#生成的新数据再重新导入到普通的数据库当中，普通数据库的是6668端口序列
                     # vertical
                     for v_ in v_sample_methods:
@@ -425,9 +426,12 @@ if __name__ == "__main__":
                                                                          param["time_func"])
                             writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
                             print(dataset, v_, storage_method, select_time, space_cost / 1000)
+                            time.sleep(5)
+                            space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
+                            print(space_cost)
                             time.sleep(2)
                             space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
                             print(space_cost)
-                            time.sleep(3)
+                            time.sleep(2)
                             space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
                             print(space_cost)

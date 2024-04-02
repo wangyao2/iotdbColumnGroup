@@ -254,6 +254,9 @@ def runDataset_column(dataset, dataset_path, time_func):
 
     time.sleep(3)
     print("start select")
+    session.execute_non_query_statement(
+        "merge"
+    )
     start_select_time = time.time()
     session.execute_query_statement(
         "select * from root.sg_al_01.d1"
@@ -357,7 +360,7 @@ if __name__ == "__main__":
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
-    datasets = ["Climate"]
+    datasets = ["TBM2_120000"]
     print("debug")
     print(datasets)
     try:
