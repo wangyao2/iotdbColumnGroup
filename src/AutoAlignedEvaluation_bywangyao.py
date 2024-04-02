@@ -6,7 +6,6 @@ from iotdb.utils.Tablet import Tablet
 from numpy import printoptions
 from DatasetPreperation import *
 import operator
-# 用来做手动测试，从csv当中插入数据，目前测试来看，第一列必须有空值才行
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 
@@ -251,31 +250,27 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 2,
         },
-        "TBM2_10000": {
+        "TBM3_10000": {
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2_20000": {
+        "TBM3_20000": {
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2_50000": {
+        "TBM3_50000": {
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2_80000": {
+        "TBM3_80000": {
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2_100000": {
+        "TBM3_100000": {
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2_120000": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "TBM2_200000": {
+        "TBM3_120000": {
             "file_dir": "",
             "time_func": 5,
         },
@@ -288,7 +283,7 @@ if __name__ == "__main__":
     #只包含了数据写入程序
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBMM2","TBM2_120000"]
-    datasets = ["TBMM2"]
+    datasets = ["TBMM1"]
     print("只导入数据，生成分组结果")
     print(datasets)
     for dataset in datasets:

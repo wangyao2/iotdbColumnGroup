@@ -328,31 +328,23 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2_20000": {
+        "TBM3_20000": {
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2_50000": {
+        "TBM3_50000": {
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2_80000": {
+        "TBM3_80000": {
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2_100000": {
+        "TBM3_100000": {
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM2_120000": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "TBM2_150000": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "TBM2_200000": {
+        "TBM3_120000": {
             "file_dir": "",
             "time_func": 5,
         },
