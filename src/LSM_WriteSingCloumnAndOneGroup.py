@@ -130,7 +130,7 @@ def runDataset_column(dataset, dataset_path, time_func):
     session.create_multi_time_series(#批量创建多条时间序列
         ts_path_lst_, data_type_lst_, encoding_lst_, compressor_lst_
     )
-    #刷写的数据转化，一批插入大量数据
+    #刷写的数据转化，这里的i不是行号，好像是之前为了方便写入时候额外的引入的
     for i in range(len(data_all)):
         print("file number: {}/{}".format(i, len(data_all)))
         local_schema = local_schemas[i].tolist()
@@ -174,17 +174,31 @@ def runDataset_column(dataset, dataset_path, time_func):
         #如果它不是nan的话，我们就从上面拿一个出来
         # measurements_list_ = [local_schema for _ in range(len(values_))]
         # data_type_list_ = [local_data_types[i] for _ in range(len(values_))]  # 非nan的个数
-        session.insert_records(
-            device_ids, timestamps_, measurements_list_, data_type_list_, values_
-        )
+        #增加分批写入和分批刷写的逻辑
+        bacthnum = 1
+        linesOfTheDataset = len(device_ids)#获得数据集一共有多少行
+        avg_len = linesOfTheDataset / float(10) #float里面的是拆分的数量
+        chunks = []
+        last = 0.0
 
-    print("start flush")
-    time.sleep(1)
-    session.execute_non_query_statement(
-        "flush"
-    )
+        while last < linesOfTheDataset:
 
-    time.sleep(3)
+            session.insert_records(#这里是一口气写入一万条数据
+                device_ids[int(last):int(last + avg_len)],
+                timestamps_[int(last):int(last + avg_len)],
+                measurements_list_[int(last):int(last + avg_len)],
+                data_type_list_[int(last):int(last + avg_len)],
+                values_[int(last):int(last + avg_len)]
+            )
+            print("start flush the batch is" + str(bacthnum))
+            bacthnum = bacthnum + 1
+            time.sleep(1)
+            last += avg_len
+            session.execute_non_query_statement(
+                "flush"
+            )
+
+    time.sleep(2)
     print("start select")
     session.execute_non_query_statement(
         "merge"
@@ -199,6 +213,15 @@ def runDataset_column(dataset, dataset_path, time_func):
     #session.execute_non_query_statement("delete storage group {}".format(storage_group))
     return select_time, space_cost
 
+def split_list_into_chunks(lst, n):
+    """将列表lst平均分成n份"""
+    avg_len = len(lst) / float(n)
+    chunks = []
+    last = 0.0
+    while last < len(lst):
+        chunks.append(lst[int(last):int(last + avg_len)])
+        last += avg_len
+    return chunks
 
 if __name__ == "__main__":
 
@@ -284,7 +307,7 @@ if __name__ == "__main__":
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
-    datasets = ["TBM3_20000"]
+    datasets = ["Vehicle2"]
     print("debug")
     print(datasets)
     try:
