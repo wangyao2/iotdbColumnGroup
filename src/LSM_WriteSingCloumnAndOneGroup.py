@@ -51,7 +51,7 @@ def clear_grouping_message():
     if os.path.isfile("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv"):
         os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv")
 
-def runDataset_column(dataset, dataset_path, time_func):
+def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWether最后一个末尾的参数，用来控制是否按照点数写数据，还是按照比例写数据
 
     file_list = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]
     file_number = len(file_list)
@@ -92,7 +92,7 @@ def runDataset_column(dataset, dataset_path, time_func):
         if len(df.columns) < 2:
             index += 1
             continue
-        local_schema = np.array(df.columns)[1:]
+        local_schema = np.array(df.columns)[1:]#获得所有列的名称
         for i in range(len(local_schema)):
             local_schema[i] = "s"+local_schema[i]#可以省略的索引标志或者改成s开头的
         global_schema = np.append(global_schema, local_schema, axis=0)
@@ -103,6 +103,12 @@ def runDataset_column(dataset, dataset_path, time_func):
         local_data_types.append(local_data_type)
         global_data_type = global_data_type + local_data_type#收集数据类型、设置列名
         device_data = np.array(df)
+
+        # 生成的负载数据，里面加载了字符串的行，创建一个布尔数组，标记需要保留的行
+        rows_to_keep = [not row[0].startswith('S') for row in device_data]
+        # 使用布尔索引从device_data中移除符合条件的行
+        device_data = device_data[rows_to_keep]
+
         for i in range(len(device_data[:, 0])):#转换时间戳
             if time_func == 0:
                 device_data[i, 0] = string_to_timestamp_0(device_data[i, 0])
@@ -112,11 +118,16 @@ def runDataset_column(dataset, dataset_path, time_func):
                 device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
             elif time_func == 5:
                 device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
+            elif time_func == 6:
+                device_data[i, 0] = string_to_timestamp_6(device_data[i, 0])
             else:
                 device_data[i, 0] = int(device_data[i, 0])
             # device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
-        data_all.append(device_data[:, 1:])
         timestamp_all.append(device_data[:, 0])#拆出时间列和数值列
+
+        #data_all.append(device_data[:, 1:].astype(np.float64))
+        #device_data = device_data.astype(np.float64);
+        data_all.append(device_data[:, 1:])
         index += 1
 
     measurements_lst_ = list(global_schema)#为每一个序列指定测点，数据类型，编码和压缩之类的
@@ -149,6 +160,14 @@ def runDataset_column(dataset, dataset_path, time_func):
         NoOfLine = 0
         for oneline in values_:
             #oneline 是个一位数组
+            try:
+                oneline = [float(item) for item in oneline]
+            except ValueError:
+                # 在这里处理错误，例如，添加一个特定的值或跳过该元素
+                print("无法转化" + str(NoOfLine))
+                print(oneline)
+                continue
+
             isnan = np.isnan(oneline).tolist() #true和false的数组
             isANum = [not x for x in isnan]
 
@@ -163,40 +182,70 @@ def runDataset_column(dataset, dataset_path, time_func):
 
             oneValues = np.array(values_[NoOfLine])
             afterboolonevalues = oneValues[isANum].tolist()
-            values_[NoOfLine] = afterboolonevalues
+            values_[NoOfLine] = [float(item) for item in afterboolonevalues]
 
             NoOfLine = NoOfLine + 1  # 行号自增1
             #print(oneMeasurement)
             #print(afterbool)
             #Newdata_type_list_ = data_type_list_[0][isnan]
             #Newmeasurements_list_ = measurements_list_[0][isnan]#需要记录nan的坐标
+
         print("完成了几行转换" + str(NoOfLine))
         #如果它不是nan的话，我们就从上面拿一个出来
         # measurements_list_ = [local_schema for _ in range(len(values_))]
         # data_type_list_ = [local_data_types[i] for _ in range(len(values_))]  # 非nan的个数
         #增加分批写入和分批刷写的逻辑
-        bacthnum = 1
-        linesOfTheDataset = len(device_ids)#获得数据集一共有多少行
-        avg_len = linesOfTheDataset / float(10) #float里面的是拆分的数量
-        chunks = []
-        last = 0.0
+        if pointWether: # pointWether取true，那么按照比例划分数据集
+            bacthnum = 1
+            linesOfTheDataset = len(device_ids)#获得数据集一共有多少行
+            avg_len = linesOfTheDataset / float(10) #float里面的是拆分的数量
+            chunks = []
+            last = 0.0
+            while last < linesOfTheDataset:
+                session.insert_records(#这里是一口气写入一万条数据
+                    device_ids[int(last):int(last + avg_len)],
+                    timestamps_[int(last):int(last + avg_len)],
+                    measurements_list_[int(last):int(last + avg_len)],
+                    data_type_list_[int(last):int(last + avg_len)],
+                    values_[int(last):int(last + avg_len)]
+                )
+                print("start flush the batch is" + str(bacthnum))
+                bacthnum = bacthnum + 1
+                time.sleep(1)
+                last += avg_len
+                session.execute_non_query_statement(
+                    "flush"
+                )
+        else: # false，那么按照数据的实际点数去划分数据集
+            bacthnum = 0 #记录批次,同时也控制行数
+            batch_size=10000 #一批的行数，也就是控制多少行刷鞋一次进去
+            linesOfTheDataset = len(device_ids)  # 获得数据集一共有多少行
 
-        while last < linesOfTheDataset:
+            count2 = 0
+            while bacthnum < linesOfTheDataset:
+                device_i = device_ids[int(bacthnum):int(bacthnum + batch_size)]
+                timest = timestamps_[int(bacthnum):int(bacthnum + batch_size)]
+                measurements_l = measurements_list_[int(bacthnum):int(bacthnum + batch_size)]
+                data_type_l = data_type_list_[int(bacthnum):int(bacthnum + batch_size)]
+                val = values_[int(bacthnum):int(bacthnum + batch_size)]
+                try:
+                    session.insert_records(  # 这里是一口气写入一万条数据
+                        device_i,
+                        timest,
+                        measurements_l,
+                        data_type_l,
+                        val
+                    )
+                    count2 = count2 + 1
+                except:
+                    print("发生问题的行" + str(count2))
 
-            session.insert_records(#这里是一口气写入一万条数据
-                device_ids[int(last):int(last + avg_len)],
-                timestamps_[int(last):int(last + avg_len)],
-                measurements_list_[int(last):int(last + avg_len)],
-                data_type_list_[int(last):int(last + avg_len)],
-                values_[int(last):int(last + avg_len)]
-            )
-            print("start flush the batch is" + str(bacthnum))
-            bacthnum = bacthnum + 1
-            time.sleep(1)
-            last += avg_len
-            session.execute_non_query_statement(
-                "flush"
-            )
+                print("start flush the batch is" + str(bacthnum))
+                bacthnum = bacthnum + batch_size
+                time.sleep(1)
+                session.execute_non_query_statement(
+                    "flush"
+                )
 
     time.sleep(2)
     print("start select")
@@ -303,11 +352,15 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 5,
         },
+        "RenGongTest1": {
+            "file_dir": "",
+            "time_func": 6,
+        },
     }
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
-    datasets = ["Vehicle2"]
+    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3", RenGongTest1，TBM3_20000 ]
+    datasets = ["RenGongTest1"]
     print("debug")
     print(datasets)
     try:
@@ -336,6 +389,6 @@ if __name__ == "__main__":
                     for v_ in v_sample_methods:
                         if v_ == sample_method:
                             select_time, space_cost = runDataset_column(dataset, os.path.join(dataset_path, "v_sample", v_),
-                                                                         param["time_func"])
+                                                                         param["time_func"], 0)
                             #writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
                             print(dataset, v_, storage_method, select_time, space_cost / 1000)

@@ -52,10 +52,13 @@ def string_to_timestamp_5(str_time):
     ts = int(time.mktime(dt)) * 1000
     return ts
 
-def string_to_timestamp_6(str_time):
-    dt = time.strptime(str_time, "%Y-%m-%d %H:%M:%S")
-    ts = int(time.mktime(dt)) * 1000
-    return ts
+def string_to_timestamp_6(str_time):#增加一种时间戳处理方式，用于辅助模拟负载集的测试
+    try:
+        # 尝试将字符串转换为整数
+        return int(str_time)
+    except ValueError:
+        # 如果转换失败，返回0
+        return 0
 
 def generate_unaligned_timeseries(file_path, noise_rate):
     df = pd.read_csv(file_path)
