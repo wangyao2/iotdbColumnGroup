@@ -7,7 +7,9 @@ import operator
 
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
-
+'''
+文件功能说明，将样本数据，以单列存储模式，加载到iotdb内存储，可以用于仿真样本和真实样本的填充
+'''
 def folderSize(folder_path):
     # assign size
     size = 0
@@ -94,7 +96,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
             continue
         local_schema = np.array(df.columns)[1:]#获得所有列的名称
         for i in range(len(local_schema)):
-            local_schema[i] = "s"+local_schema[i]#可以省略的索引标志或者改成s开头的
+            local_schema[i] = ""+local_schema[i]#可以省略的索引标志或者改成s开头的
         global_schema = np.append(global_schema, local_schema, axis=0)
         local_schemas.append(local_schema)
         local_data_type = []
@@ -108,7 +110,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
         rows_to_keep = [not row[0].startswith('S') for row in device_data]
         # 使用布尔索引从device_data中移除符合条件的行
         device_data = device_data[rows_to_keep]
-
+        print("完成行数过滤！")
         for i in range(len(device_data[:, 0])):#转换时间戳
             if time_func == 0:
                 device_data[i, 0] = string_to_timestamp_0(device_data[i, 0])
@@ -124,6 +126,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                 device_data[i, 0] = int(device_data[i, 0])
             # device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
         timestamp_all.append(device_data[:, 0])#拆出时间列和数值列
+        print("时间戳转换已经完成！")
 
         #data_all.append(device_data[:, 1:].astype(np.float64))
         #device_data = device_data.astype(np.float64);
@@ -136,7 +139,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
     compressor_lst_ = [Compressor.SNAPPY for _ in range(len(data_type_lst_))]
     ts_path_lst_ = []
     for mesurement in measurements_lst_:
-        ts_path_lst_.append("root.lsmcl01.d1." + mesurement)
+        ts_path_lst_.append("root.lsmcl01.g0.d0." + mesurement)
 
     session.create_multi_time_series(#批量创建多条时间序列
         ts_path_lst_, data_type_lst_, encoding_lst_, compressor_lst_
@@ -154,51 +157,24 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
 
         measurements_list_ = [local_schema for _ in range(len(values_))]
         data_type_list_ = [local_data_types[i] for _ in range(len(values_))]#非nan的个数
-        device_ids = ["root.lsmcl01.d1" for _ in range(len(values_))]
+        device_ids = ["root.lsmcl01.g0.d0" for _ in range(len(values_))]
 
         #如果我增加这一段空值处理的话，方师兄的样例程序就没法正常输出结果，没法产生那个group.csv文件
-        NoOfLine = 0
-        for oneline in values_:
-            #oneline 是个一位数组
-            try:
-                oneline = [float(item) for item in oneline]
-            except ValueError:
-                # 在这里处理错误，例如，添加一个特定的值或跳过该元素
-                print("无法转化" + str(NoOfLine))
-                print(oneline)
-                continue
+        #NoOfLine = 0
+        #todo 明天把这一块非0行判断的部分给移除掉
+        # 使用列表推导式将每个内部列表的所有元素转换为浮点型
+        float_values = [[float(item) for item in inner_list] for inner_list in values_]
 
-            isnan = np.isnan(oneline).tolist() #true和false的数组
-            isANum = [not x for x in isnan]
-
-            oneMeasurement = np.array(measurements_list_[NoOfLine])
-            afterboolMeasure = oneMeasurement[isANum]
-            afterboolMeasure1 = afterboolMeasure.tolist()
-            measurements_list_[NoOfLine] = afterboolMeasure1
-
-            oneDataType = np.array(data_type_list_[NoOfLine])
-            afterboolDataTpye = oneDataType[isANum].tolist()
-            data_type_list_[NoOfLine] = afterboolDataTpye
-
-            oneValues = np.array(values_[NoOfLine])
-            afterboolonevalues = oneValues[isANum].tolist()
-            values_[NoOfLine] = [float(item) for item in afterboolonevalues]
-
-            NoOfLine = NoOfLine + 1  # 行号自增1
-            #print(oneMeasurement)
-            #print(afterbool)
-            #Newdata_type_list_ = data_type_list_[0][isnan]
-            #Newmeasurements_list_ = measurements_list_[0][isnan]#需要记录nan的坐标
-
-        print("完成了几行转换" + str(NoOfLine))
+        print("完成了数值类型转化，全部转换！")
         #如果它不是nan的话，我们就从上面拿一个出来
         # measurements_list_ = [local_schema for _ in range(len(values_))]
         # data_type_list_ = [local_data_types[i] for _ in range(len(values_))]  # 非nan的个数
         #增加分批写入和分批刷写的逻辑
         if pointWether: # pointWether取true，那么按照比例划分数据集
             bacthnum = 1
+            portion = 10#指定划分的比例
             linesOfTheDataset = len(device_ids)#获得数据集一共有多少行
-            avg_len = linesOfTheDataset / float(10) #float里面的是拆分的数量
+            avg_len = linesOfTheDataset / float(portion) #float里面的是拆分的数量
             chunks = []
             last = 0.0
             while last < linesOfTheDataset:
@@ -207,7 +183,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                     timestamps_[int(last):int(last + avg_len)],
                     measurements_list_[int(last):int(last + avg_len)],
                     data_type_list_[int(last):int(last + avg_len)],
-                    values_[int(last):int(last + avg_len)]
+                    float_values[int(last):int(last + avg_len)]
                 )
                 print("start flush the batch is" + str(bacthnum))
                 bacthnum = bacthnum + 1
@@ -218,7 +194,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                 )
         else: # false，那么按照数据的实际点数去划分数据集
             bacthnum = 0 #记录批次,同时也控制行数
-            batch_size=10000 #一批的行数，也就是控制多少行刷鞋一次进去
+            batch_size=10000 #一批的行数，也就是控制多少行刷鞋一次进去###########################################
             linesOfTheDataset = len(device_ids)  # 获得数据集一共有多少行
 
             count2 = 0
@@ -227,7 +203,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                 timest = timestamps_[int(bacthnum):int(bacthnum + batch_size)]
                 measurements_l = measurements_list_[int(bacthnum):int(bacthnum + batch_size)]
                 data_type_l = data_type_list_[int(bacthnum):int(bacthnum + batch_size)]
-                val = values_[int(bacthnum):int(bacthnum + batch_size)]
+                val = float_values[int(bacthnum):int(bacthnum + batch_size)]
                 try:
                     session.insert_records(  # 这里是一口气写入一万条数据
                         device_i,
@@ -254,7 +230,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
     )
     start_select_time = time.time()
     session.execute_query_statement(
-        "select * from root.lsmcl01.d1"
+        "select * from root.lsmcl01.g0.d0"
     )
     end_select_time = time.time()
     select_time = end_select_time - start_select_time
@@ -348,9 +324,9 @@ if __name__ == "__main__":
             "file_dir": "",
             "time_func": 5,
         },
-        "TBM3_120000": {
+        "RenGongTest2Less": {
             "file_dir": "",
-            "time_func": 5,
+            "time_func": 6,
         },
         "RenGongTest1": {
             "file_dir": "",
@@ -359,7 +335,7 @@ if __name__ == "__main__":
     }
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3", RenGongTest1，TBM3_20000 ]
+    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3", RenGongTest1，TBM3_20000,RenGongTest2Less]
     datasets = ["RenGongTest1"]
     print("debug")
     print(datasets)

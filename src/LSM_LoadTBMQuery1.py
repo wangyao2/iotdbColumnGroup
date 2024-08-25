@@ -3,7 +3,9 @@ from DatasetPreperation import *
 import random
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
-
+'''
+文件功能说明，加载TBM真实数据集的查询样式模拟
+'''
 def folderSize(folder_path):
     # assign size
     size = 0
@@ -71,25 +73,13 @@ def generate_random_date_HMS():#编写随机生成，时间hh-mm-ss
     second = random.randint(1, 2)
     return hour, minute, second
 
-def runDataset_Query_column(dataset, dataset_path, time_func):
-
-    file_list = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]
-    file_number = len(file_list)
-    storage_group = "root.lsmcl01"
-    index = 1
-    ip = "127.0.0.1"
-    username_ = "root"
-    password_ = "root"
-    session = Session(ip, port_, username_, password_, fetch_size=1024, zone_id="UTC+8")
-    session.open(False)
-    print("start select")
-
-    # 范围查询的时间函数生成器
+def generate_Arandom_StartTime():
+    # 范围查询的时间函数生成器——生成 StartTime
     ymd = generate_random_date_YMD()
     hms = generate_random_date_HMS()
     year, month, day = ymd
     hour, minute, second = hms
-    #3个if用来为个位数前面增加一个0，不然没法被日期格式化识别
+    # 3个if用来为个位数前面增加一个0，不然没法被日期格式化识别
     if hour < 10:
         hour = "0" + str(hour)
     if minute < 10:
@@ -97,61 +87,85 @@ def runDataset_Query_column(dataset, dataset_path, time_func):
     if second < 10:
         second = "0" + str(second)
     startTime = "" + str(2020) + "-" + str(11) + "-" + str(23) + "T" + str(hour) + ":" + str(minute) + ":" + str(second)
+    return startTime
 
+def generate_Arandom_EndTime():
+    # 范围查询的时间函数生成器——生成 EndTime
     ymd = generate_random_date_YMD()
     hms = generate_random_date_HMS()
     year, month, day = ymd
     hour, minute, second = hms
-    #3个if用来为个位数前面增加一个0，不然没法被日期格式化识别
+    # 3个if用来为个位数前面增加一个0，不然没法被日期格式化识别
     if hour < 10:
         hour = "0" + str(hour)
     if minute < 10:
         minute = "0" + str(minute)
     if second < 10:
         second = "0" + str(second)
-    endTime = ""+ str(2020) + "-" + str(11) + "-" + str(23) + "T" + str(hour) + ":" + str(minute) + ":" + str(second)
+    endTime = "" + str(2020) + "-" + str(11) + "-" + str(23) + "T" + str(hour) + ":" + str(minute) + ":" + str(second)
+    return endTime
 
-    print("随机生成的测试数据，起始时间：" + startTime)
-    print("随机生成的测试数据，起始时间：" + endTime)
+def runDataset_Query_column():
+
+    ip = "127.0.0.1"
+    username_ = "root"
+    password_ = "root"
+    session = Session(ip, port_, username_, password_, fetch_size=1024, zone_id="UTC+8")
+    session.open(False)
+
+    df = pd.read_csv("F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\QueryASample1less.csv")
+    QueryDataSetColumnName = np.array(df.columns)
+    df = df[['start','interval','endtime']]#提取查询必要的列信息
+    Query_data = np.array(df)#除了列名之外都加载进来了，这是一个二维的List结构
+
+
+    print("加载查询样式集已经完毕，准备查询...start select.")
+
+    # #通过纯随机的函数生成近期查询样式
+    # Random_start_time = generate_Arandom_StartTime()
+    # Random_end_time = generate_Arandom_EndTime()
+    #
+    # print("随机生成的测试数据，起始时间：" + Random_start_time)
+    # print("随机生成的测试数据，起始时间：" + Random_end_time)
 
     t1 = "2020-11-23T03:08:04"
     t2 = "2020-11-23T23:08:18"
 
+    LoopQueryCount = 0#记录
+    terminateEndCondition = 100
     start_select_time = time.time()
-    QuerySql = "select s1 from root.lsmcl01.d1 where time > " + startTime +" and time < " +  endTime
-    print("设定的SQL语句是：" + QuerySql)
 
-    #Sessiondataset = session.execute_query_statement(QuerySql)
+    for oneQuery in Query_data: #获取到一行的样本集，
 
-    Sessiondataset = session.execute_query_statement("select * from root.lsmcl01.d1")
-
-    column_names = Sessiondataset.get_column_names()#获取列名
-    print(column_names)
-
-    WhileCounts = 0  # 初始化计数器，确保只打印多少行
-    while Sessiondataset.has_next():
-        print(Sessiondataset.next())
-        WhileCounts = WhileCounts + 1
-        if WhileCounts == 10:
+        if LoopQueryCount == terminateEndCondition:
+            print("循环查询被数量条件终止，设定的数量条件为: " + str(terminateEndCondition))
             break
+        LoopQueryCount = LoopQueryCount + 1
+        print("查询次数： " + str(LoopQueryCount))
+        startTime = str(oneQuery[0])
+        endTime = str(oneQuery[2])
+
+        QuerySql = "select s1 from root.lsmcl01.d1 where time > " + startTime +" and time < " +  endTime
+        print("设定的SQL语句是：" + QuerySql)
+
+        #Sessiondataset = session.execute_query_statement(QuerySql)
+        #将循环执行sql查询
+        Sessiondataset = session.execute_query_statement("select * from root.lsmcl01.d1.d2")
+        time.sleep(0.1)# 让程序睡眠100毫秒
+
+        #下面是分析查询读取的结果
+        column_names = Sessiondataset.get_column_names()#获取列名
+        print(column_names)
+        WhileCounts = 0  # 初始化计数器，确保只打印多少行
+        while Sessiondataset.has_next():
+            print(Sessiondataset.next())
+            WhileCounts = WhileCounts + 1
+            if WhileCounts == 10:
+                break
 
     end_select_time = time.time()
-
     select_time = end_select_time - start_select_time
-
-    #space_cost = folderSize(database_file_path)
-    #session.execute_non_query_statement("delete storage group {}".format(storage_group))
     return select_time
-
-def split_list_into_chunks(lst, n):
-    """将列表lst平均分成n份"""
-    avg_len = len(lst) / float(n)
-    chunks = []
-    last = 0.0
-    while last < len(lst):
-        chunks.append(lst[int(last):int(last + avg_len)])
-        last += avg_len
-    return chunks
 
 if __name__ == "__main__":
 
@@ -206,34 +220,4 @@ if __name__ == "__main__":
             "time_func": 5,
         },
     }
-
-    #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
-    datasets = ["Vehicle2"]
-    print("debug")
-    print(datasets)
-
-    print("数据查询实验----")
-    for dataset in datasets:
-        param = parameters[dataset]
-        dataset_path = os.path.join("dataset", dataset, param["file_dir"])
-        v_sample_methods = os.listdir(os.path.join(dataset_path, "v_sample"))
-#        h_sample_methods = os.listdir(os.path.join(dataset_path, "h_sample"))
-        v_sample_methods = [p for p in v_sample_methods if p.startswith("v_sample")]
-        #h_sample_methods = [p for p in h_sample_methods if p.startswith("h_sample")]
-
-
-        for sample_method in v_sample_methods:
-            for storage_method in ["singcolumn"]:
-                if sample_method == "h_sample2":
-                    continue
-
-                if storage_method == "singcolumn":
-                    port_ = "6667"#autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
-                    # vertical
-                    for v_ in v_sample_methods:
-                        if v_ == sample_method:
-                            select_time= runDataset_Query_column(dataset, os.path.join(dataset_path, "v_sample", v_),
-                                                                         param["time_func"])
-                            #writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
-                            print(dataset, v_, storage_method, select_time)
+    select_time = runDataset_Query_column()
