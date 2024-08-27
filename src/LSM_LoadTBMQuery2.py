@@ -11,7 +11,7 @@ import numpy as np
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 '''
-文件功能说明，Both,把截取的段混合在一起，而不是单独放置，生成真实数据集的查询样式模拟，生成的文件是220多行的 outputFileName到一个csv文件中
+文件功能说明，Split不同的工作周期，截取TBM不同的工作周期段，分别生成移动段和拼装段，生成真实数据集的查询样式模拟，生成的文件是220多行的 outputFileName到一个csv文件中
 '''
 
 def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
@@ -56,7 +56,8 @@ def generateDataset_Querys(filename):
     MovingStage = []
     PinZhuangStage = []
 
-    SegmentStage = []
+    SegmentMovingStage = []
+    SegmentPinZhuangStage = []
 
     ii = 0
     kend = 0  # 记录一个窗口的结束
@@ -72,14 +73,15 @@ def generateDataset_Querys(filename):
             # 记录一个窗口内的数据
             MovingStage.append(ii)  # 记录下标的位置
             #if (ShangXingCheng.iloc[ii, 1] < 1900) & ((ShangXingCheng.iloc[ii, 1] - ShangXingCheng.iloc[ii - 1, 1]) < -300):
-        if ((ShangXingCheng.iloc[ii, 1] - ShangXingCheng.iloc[ii - 1, 1]) < -500):#检测突降，划分阶段
+        if ((len(MovingStage) !=0) and ((ShangXingCheng.iloc[ii, 1] - ShangXingCheng.iloc[ii - 1, 1]) < -500)):#检测突降，划分阶段
             # 检测到偏差变化过大那么就终止这一个段
-            SegmentStage.append(PinZhuangStage.copy())
-            SegmentStage.append(MovingStage.copy()) #调整后，把两块
+            SegmentPinZhuangStage.append(PinZhuangStage.copy())
+            SegmentMovingStage.append(MovingStage.copy())
             PinZhuangStage.clear()
             MovingStage.clear()
+
             # TimeDataNodeList.append(timeDataNode(ShangXingCheng.iloc[ii,0],ShangXingCheng.iloc[ii,1])) #0编号是时间，1编号是速度
-    return SegmentStage
+    return SegmentMovingStage,SegmentPinZhuangStage
 
 def generateDataset_QuerysToCsv1(combined_list,filename,outputFileName):
     #输入参数是一个list，每一个元素是[startindex , endindex]，标志了在原始DTDG文件中，阶段的起止
@@ -104,6 +106,50 @@ def generateDataset_QuerysToCsv1(combined_list,filename,outputFileName):
         # 将结果写入到CSV文件中
     result_df.to_csv(outputFileName, index=False)
     return 0
+
+
+def generateDataset_Querys2():
+
+    data = pd.read_csv("F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\copy_DTDG.STA77_2_1.csv")
+    QueryDataSetColumnName = np.array(data.columns)
+    # 考虑只提取
+    data.drop(["AutoKey"
+                  , 'HuanHao'
+                  , 'JueJingMoShi'
+               ]
+              , inplace=True  # 已经执行完毕
+              , axis=1)  # drop还可以指定索引删除行
+
+    data.columns
+
+    # 上行程
+    ShangXingCheng = data.loc[:, ["UpLoadTime", "ShangXingCheng"]]
+    leng = ShangXingCheng.shape[0]
+    print(leng)
+
+    NormalTimeDataNodeList = []
+    MovingStage = []
+    PinZhuangStage = []
+
+    SegmentMovingStage = []
+    SegmentPinZhuangStage = []
+
+    ii = 0
+    kend = 0  # 记录一个窗口的结束
+
+    while ii < leng:
+        #NormalTimeDataNodeList.append(ShangXingCheng.iloc[ii, 1])  # 先把所有的时间戳数据抄录下来
+        ii = ii + 1
+        if ii == leng:
+            break
+        # 设定阈值，划分出上升阶段的窗口，清洗油缸上升阶段的数据
+        if ShangXingCheng.iloc[ii, 1] < 680:
+            PinZhuangStage.append(ii)
+        else:
+            MovingStage.append(ii)  # 记录下标的位置
+            # TimeDataNodeList.append(timeDataNode(ShangXingCheng.iloc[ii,0],ShangXingCheng.iloc[ii,1])) #0编号是时间，1编号是速度
+    return SegmentMovingStage,SegmentPinZhuangStage
+
 
 if __name__ == "__main__":
 
@@ -159,13 +205,20 @@ if __name__ == "__main__":
         },
     }
     ffilename = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\copy_DTDG.STA77_2_1.csv"
-    SegmentStageResult = generateDataset_Querys(ffilename)
+    SegmentMovingStage,SegmentPinZhuangStage = generateDataset_Querys(ffilename)
     #识别移动阶段的周期和结束起始时刻
-    MovingStage_min_values_List = [min(sublist) for sublist in SegmentStageResult if len(sublist) > 5]
-    MovingStage_max_values_List = [max(sublist) for sublist in SegmentStageResult if len(sublist) > 5]
+    MovingStage_min_values_List = [min(sublist) for sublist in SegmentMovingStage if sublist]
+    MovingStage_max_values_List = [max(sublist) for sublist in SegmentMovingStage if sublist]
     MovingStage_combined_list = [(MovingStage_min_values_List[i], MovingStage_max_values_List[i]) for i in range(len(MovingStage_max_values_List))]
-    #TODO 时间戳和时间范围交叉问题待解决，参考both文件
-    outputFileName = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\RResult1_BothStage.csv"
-    generateDataset_QuerysToCsv1(MovingStage_combined_list,ffilename,outputFileName)
+    # 识别拼装阶段的周期和结束起始时刻
+    PinZhuang_min_values_List = [min(sublist) for sublist in SegmentPinZhuangStage if len(sublist) > 5]
+    PinZhuang_max_values_List = [max(sublist) for sublist in SegmentPinZhuangStage if len(sublist) > 5]
+    PinZhuang_combined_list = [(PinZhuang_min_values_List[i], PinZhuang_max_values_List[i]) for i in range(len(PinZhuang_min_values_List))]
 
+    outputFileName = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\RResult1_OnlyMovingStage.csv"
+    generateDataset_QuerysToCsv1(MovingStage_combined_list,ffilename,outputFileName)
+    outputFileName = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\RResult1_OnlyPinZhuangStage.csv"
+    generateDataset_QuerysToCsv1(PinZhuang_combined_list,ffilename,outputFileName)
     print("0")
+
+
