@@ -3,7 +3,9 @@ from DatasetPreperation import *
 import random
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
-
+'''
+文件功能说明，通过随机函数生成时间范围，模拟随机的用户查询样式，提交到iotdb中执行数据查询，用于验证随机样式下的性能
+'''
 def folderSize(folder_path):
     # assign size
     size = 0

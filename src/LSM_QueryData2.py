@@ -4,7 +4,8 @@ import random
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 '''
-文件功能说明，将样本查询的案例，重新播放，提交到iotdb中执行数据查询，用于播放历史查询数据
+文件功能说明，将样本查询的案例，读取CSV文件文件格式为(start,interval,endtime,startQuery)，我们只读取里面的开始时间和结束时间。
+重新播放历史查询样式，提交到iotdb中执行数据查询，用于播放历史查询数据
 '''
 def folderSize(folder_path):
     # assign size
@@ -113,7 +114,7 @@ def runDataset_Query_column():
     session = Session(ip, port_, username_, password_, fetch_size=1024, zone_id="UTC+8")
     session.open(False)
 
-    df = pd.read_csv("F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\QueryASample1less.csv")
+    df = pd.read_csv("F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\QueryASample2mroe.csv")
     QueryDataSetColumnName = np.array(df.columns)
     df = df[['start','interval','endtime']]#提取查询必要的列信息
     Query_data = np.array(df)#除了列名之外都加载进来了，这是一个二维的List结构
@@ -132,7 +133,7 @@ def runDataset_Query_column():
     t2 = "2020-11-23T23:08:18"
 
     LoopQueryCount = 0#记录
-    terminateEndCondition = 100
+    terminateEndCondition = 200#在这里 控制修改提交的查询次数
     start_select_time = time.time()
 
     for oneQuery in Query_data: #获取到一行的样本集，
@@ -151,7 +152,7 @@ def runDataset_Query_column():
         #Sessiondataset = session.execute_query_statement(QuerySql)
         #将循环执行sql查询
         Sessiondataset = session.execute_query_statement(QuerySql)
-        time.sleep(0.1)# 让程序睡眠100毫秒
+        time.sleep(0.4)# 在这里控制修改每一次查询提交的时间间隔
 
         #下面是分析查询读取的结果
         column_names = Sessiondataset.get_column_names()#获取列名

@@ -8,7 +8,8 @@ import operator
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 '''
-文件功能说明，将样本数据，以单列存储模式，加载到iotdb内存储，可以用于仿真样本和真实样本的填充
+文件功能说明，将样本数据，以单列存储模式，加载到iotdb内存储,形成多批tsfile文件，可以用于仿真样本和真实样本的填充
+在第399行指定要手动写入哪一个文件
 '''
 def folderSize(folder_path):
     # assign size
@@ -67,14 +68,14 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
 
     try:
         session.execute_non_query_statement("delete storage group root.lsmcl01")
-        time.sleep(1)
+        time.sleep(0.3)
         print("删除存储组完毕")
     finally:
         pass
 
     try:
         session.execute_non_query_statement("create storage group root.lsmcl01")
-        time.sleep(1)
+        time.sleep(0.3)
         #session.set_storage_group(storage_group)
         print("创建并且设置存储组")
     finally:
@@ -136,7 +137,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
     measurements_lst_ = list(global_schema)#为每一个序列指定测点，数据类型，编码和压缩之类的
     data_type_lst_ = global_data_type
     encoding_lst_ = [TSEncoding.PLAIN for _ in range(len(data_type_lst_))]
-    compressor_lst_ = [Compressor.SNAPPY for _ in range(len(data_type_lst_))]
+    compressor_lst_ = [Compressor.UNCOMPRESSED for _ in range(len(data_type_lst_))]
     ts_path_lst_ = []
     for mesurement in measurements_lst_:
         ts_path_lst_.append("root.lsmcl01.g0.d0." + mesurement)
@@ -194,7 +195,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                 )
         else: # false，那么按照数据的实际点数去划分数据集
             bacthnum = 0 #记录批次,同时也控制行数
-            batch_size=10000 #一批的行数，也就是控制多少行刷鞋一次进去###########################################
+            batch_size=1000 #一批的行数，也就是控制多少行刷鞋一次进去###########################################
             linesOfTheDataset = len(device_ids)  # 获得数据集一共有多少行
 
             count2 = 0
@@ -216,12 +217,14 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                 except:
                     print("发生问题的行" + str(count2))
 
-                print("start flush the batch is" + str(bacthnum))
+                print("insert One the batch is" + str(bacthnum))
                 bacthnum = bacthnum + batch_size
                 time.sleep(1)
-                session.execute_non_query_statement(
-                    "flush"
-                )
+                if bacthnum % (batch_size * 10) == 0:#整10倍的时候，才写入调用刷写函数
+                    print("insert One the batch is" + str(bacthnum))
+                    session.execute_non_query_statement(
+                        "flush"
+                    )
 
     time.sleep(2)
     print("start select")
@@ -229,9 +232,10 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
         "merge"
     )
     start_select_time = time.time()
-    session.execute_query_statement(
-        "select * from root.lsmcl01.g0.d0"
-    )
+    # session.execute_query_statement(
+    #     "select * from root.lsmcl01.g0.d0"
+    # )
+    time.sleep(0.2)
     end_select_time = time.time()
     select_time = end_select_time - start_select_time
     space_cost = folderSize(database_file_path)
