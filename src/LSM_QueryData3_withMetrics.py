@@ -1,6 +1,9 @@
 from iotdb.Session import Session
 from DatasetPreperation import *
 import random
+import matplotlib.pyplot as plt
+import numpy as np
+import csv
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 '''
@@ -19,6 +22,19 @@ def folderSize(folder_path):
             size += os.path.getsize(fp)
 
     return size
+
+def list_to_csv(file_name, data_list):
+    """
+    将列表中的每个元素写入到CSV文件的一行。
+
+    参数:
+    file_name (str): CSV文件的名称。
+    data_list (list): 包含要写入数据的列表。
+    """
+    with open(file_name, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        for item in data_list:
+            writer.writerow([item])
 
 def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
     res_file_dir = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\esult-autoaligned.csv"
@@ -123,10 +139,10 @@ def runDataset_Query_column():
     print("加载查询样式集已经完毕，准备查询...start select.")
 
     LoopQueryCount = 0#记录
-    terminateEndCondition = 2#在这里 控制修改提交的查询次数
+    terminateEndCondition = 500#在这里 控制修改提交的查询次数
 
     OverAll_select_time = 0#全局总览的查询时间，记录下全部数据的
-    QurySelectTimeTrace = [] #
+    QurySelectTimeTrace = [] # 记录每一个查询的耗时
     for oneQuery in Query_data: #获取到一行的样本集，
         if LoopQueryCount == terminateEndCondition:
             print("循环查询被数量条件终止，设定的数量条件为: " + str(terminateEndCondition))
@@ -137,54 +153,42 @@ def runDataset_Query_column():
         endTime = str(oneQuery[2])
 
         QuerySql = "select * from root.lsmcl01.g0.d0 where time > " + startTime +" and time < " +  endTime
-        QuerySql2 = "select count(*) from root.lsmcl01.g0.d0 where time > " + startTime +" and time < " +  endTime
+        #QuerySql2 = "select count(*) from root.lsmcl01.g0.d0 where time > " + startTime +" and time < " +  endTime
         print("设定的SQL语句是：" + QuerySql)
         #Sessiondataset = session.execute_query_statement(QuerySql)
 
         #统计查询时间汇总
         start_select_time = time.time()#记录每一条查询所需要的耗时
         Sessiondataset = session.execute_query_statement(QuerySql)
-        CountsResult = session.execute_query_statement(QuerySql2)
+        #CountsResult = session.execute_query_statement(QuerySql2)
 
         end_select_time = time.time()
         oneQurySelectTimeCost = end_select_time - start_select_time  # 记录一条数据查询的时间耗时
         QurySelectTimeTrace.append(oneQurySelectTimeCost)#每一次查询都把查询的结果记录下来
         OverAll_select_time = OverAll_select_time + oneQurySelectTimeCost
 
-        #分段统计查询时间的变化情况，就是看看再合并前后，对文件的查询和数据的读取，影响的变化趋势
-
-        #下面是分析查询读取的结果
-
         #统计查询出来的所有点数，作为点数吞吐量
         column_names = Sessiondataset.get_column_names()#获取列名
         columnLength = len(column_names) - 1 #减1是因为要排除掉一个时间列
-        rowlength = 0
-        print(column_names)
 
-        df_output = CountsResult.todf()
-        row_count, column_count = df_output.shape
-        df_output2 = Sessiondataset.todf()
+        df_output2 = Sessiondataset.todf()#直接调用todf转化成pandas结构，然后调用shape获取内部的行数
         row_count2, column_count2 = df_output2.shape
 
-        #统计查询出来的点数，淘汰下面的while循环
-        WhileCounts = 0  # 初始化计数器，确保只打印多少行
-        while CountsResult.has_next():
-            OneCounts = CountsResult.next()
-            onelineString = str(OneCounts)
-            split_list = onelineString.split('\t\t')
-            split_list.pop(0)
-            sum_value = sum(int(item) for item in split_list)  # 将元素转换为整数并求和
-            print(sum_value)
-            print(onelineString)
+        OverAll_PointNums = columnLength * row_count2 #统计出来总的查询点数
+        print("查询总点数：",str(OverAll_PointNums),"行数:",row_count2,"列数:",column_count2)#打印输出所有的查询到的点数
 
-        OverAll_PointNums = columnLength * rowlength #统计出来总的查询点数
-        print(str(OverAll_PointNums))#打印输出所有的查询到的点数
+        time.sleep(0.1)# 在这里控制修改每一次查询提交的时间间隔
 
-        time.sleep(0.3)# 在这里控制修改每一次查询提交的时间间隔
-
-    return 0
+    # for queryCostOneQuery in QurySelectTimeTrace:
+    #     print(str(queryCostOneQuery))
+    print("查询条数"+str(terminateEndCondition) +",总耗时"+str(OverAll_select_time))
+    return QurySelectTimeTrace
 
 if __name__ == "__main__":
 
     dataset_root = "dataset/"
-    select_time = runDataset_Query_column()
+    QurySelectTimeTraceH = runDataset_Query_column()
+    #QurySelectTimeTraceH = [1, 2, 3, 4, 5]
+    #list_to_csv('outputX_orignalIotdb.csv', QurySelectTimeTraceH)
+    list_to_csv('outputX_YaosN1.csv', QurySelectTimeTraceH)
+
