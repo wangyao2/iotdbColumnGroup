@@ -340,7 +340,7 @@ if __name__ == "__main__":
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3", RenGongTest1，TBM3_20000,RenGongTest2Less]
-    datasets = ["RenGongTest1"]
+    datasets = ["TBM3_20000"]
     print("debug")
     print(datasets)
     try:

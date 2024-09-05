@@ -9,10 +9,9 @@ database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 '''
 文件功能说明，将样本数据，以单列存储模式，加载到iotdb内存储,形成多批tsfile文件，可以用于仿真样本和真实样本的填充
-第2版的作用是，加载一个文件夹下面的所有csv文件，而不是一次智能读取一个文件了 
-挨个读取，写入到iotdb中，免去手动写入的麻烦
-在第399行指定要手动写入哪一个文件，在更换文件的时候要注意对应的时间处理函数
-
+第3版的作用是，加载一个xlsx文件夹下面的所有excle文件，来源于地铁数据中心的所有数据都是excle导出保存的
+由于涉及到特殊的时间戳处理还有额外列的时间戳处理，本文件只能用于真实盾构机的数据写入
+早先的TBM数据集使用2号版本文件，人工数据集也请使用2号版本文件
 '''
 def folderSize(folder_path):
     # assign size
@@ -28,10 +27,9 @@ def folderSize(folder_path):
 
 def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWether最后一个末尾的参数，用来控制是否按照点数写数据，还是按照比例写数据
 
-    file_list = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]
+    file_list = [f for f in os.listdir(dataset_path) if f.endswith(".xlsx")]
     file_number = len(file_list)
     storage_group = "root.lsmcl01"
-    index = 1
     ip = "127.0.0.1"
     username_ = "root"
     password_ = "root"
@@ -54,7 +52,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
         pass
 
     for file_name in file_list:
-        if not file_name.endswith(".csv"):
+        if not file_name.endswith(".xlsx"):
             continue
         print("当前处理文件为：" + file_name + "======")
         #我认为，每处理一个新文件的时候，都要去重新生成对应的全局变量
@@ -65,49 +63,65 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
         data_all = list()
         timestamp_all = list()
 
-        df = pd.read_csv(os.path.join(dataset_path, file_name))
-        if len(df.columns) < 2:
-            index += 1
-            continue
-        local_schema = np.array(df.columns)[1:]#获得所有列的名称
-        for i in range(len(local_schema)):
-            local_schema[i] = ""+local_schema[i]#可以省略的索引标志或者改成s开头的
+        df = pd.read_excel(os.path.join(dataset_path, file_name), engine='openpyxl')
+        df.drop(df.index[0], inplace=True)#删掉第一行的空数据，不需要删除任何列
+        df[['AutoKey', '时间']] = df[['时间', 'AutoKey']]#交换两列，把第一列放到前面去
+
+        local_schema = np.array(df.columns)[:]  # 获得所有列的名称
+        local_schema[0], local_schema[1] = local_schema[1], local_schema[0]#把时间的 元数据放到第一列里面
+        local_schema = local_schema[1:]
+
+        # 初始化计数器，# 遍历列表，把里面的汉语全都修改为英语开头的字符串，以方便序列的元数据能匹配
+        # counter = 1
+        # for i in range(len(local_schema)):
+        #     # 检查字符串是否包含汉字
+        #     if any('\u4e00' <= char <= '\u9fff' for char in local_schema[i]):
+        #         # 更新字符串内容
+        #         local_schema[i] = f'T{counter}'
+        #         # 计数器加1
+        #         counter += 1
+
         global_schema = np.append(global_schema, local_schema, axis=0)
         local_schemas.append(local_schema)
         local_data_type = []
-        for attr in local_schema:#为每一个列都设置
+        for attr in local_schema:#为每一个列都设置数据类型
             local_data_type.append(TSDataType.DOUBLE)
         local_data_types.append(local_data_type)
         global_data_type = global_data_type + local_data_type#收集数据类型、设置列名
         device_data = np.array(df)
 
-        # 生成的负载数据，里面加载了字符串的行，创建一个布尔数组，标记需要保留的行
-        rows_to_keep = [not row[0].startswith('S') for row in device_data]
+        # 生成的负载数据，里面加载了字符串的行，创建一个布尔数组，标记需要保留的行,这个是在人工数据集处理时才需要检测 手工负载的标志行号
+        #rows_to_keep = [not row[0].startswith('S') for row in device_data]
         # 使用布尔索引从device_data中移除符合条件的行
-        device_data = device_data[rows_to_keep]
+        #device_data = device_data[rows_to_keep]
+
         print("完成行数过滤！")
-        for i in range(len(device_data[:, 0])):#转换时间戳
-            if time_func == 0:
-                device_data[i, 0] = string_to_timestamp_0(device_data[i, 0])
-            elif time_func == 1:
-                device_data[i, 0] = string_to_timestamp_1(device_data[i, 0])
-            elif time_func == 2:
-                device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
-            elif time_func == 5:
+        for i in range(len(device_data[:, 0])):#转换时间戳,这里是选取第一列作为时间戳
+            if time_func == 5:
                 device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
+            elif time_func == 7:
+                device_data[i, 0] = string_to_timestamp_7(device_data[i, 0])
             elif time_func == 6:
                 device_data[i, 0] = string_to_timestamp_6(device_data[i, 0])
             else:
                 device_data[i, 0] = int(device_data[i, 0])
             # device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
-        timestamp_all.append(device_data[:, 0])#拆出时间列和数值列
+
+        #这一组序列3的for循环，只针对真实的盾构机数据集生效
+        for i in range(len(device_data[:, 3])):#转换时间戳,这里是选取第一列作为时间戳
+            if time_func == 7:
+                device_data[i, 3] = string_to_timestamp_7(device_data[i, 3])
+            elif time_func == 6:
+                device_data[i, 3] = string_to_timestamp_6(device_data[i, 3])
+            else:
+                device_data[i, 3] = int(device_data[i, 3])
+
+        timestamp_all.append(device_data[:, 0])#单独拆出时间列，第一列拿出来
+        data_all.append(device_data[:, 1:])#拆出其他的数据列
         print("时间戳转换已经完成！")
-        #data_all.append(device_data[:, 1:].astype(np.float64))
-        #device_data = device_data.astype(np.float64);
-        data_all.append(device_data[:, 1:])
-        index += 1
+
     #=========分割线，原本这个处理数据在if 的前面位置
-        measurements_lst_ = list(global_schema)#为每一个序列指定测点，数据类型，编码和压缩之类的
+        measurements_lst_ = list(global_schema[0:])#为每一个序列指定测点，数据类型，编码和压缩之类的
         data_type_lst_ = global_data_type
         encoding_lst_ = [TSEncoding.PLAIN for _ in range(len(data_type_lst_))]
         compressor_lst_ = [Compressor.UNCOMPRESSED for _ in range(len(data_type_lst_))]
@@ -123,12 +137,12 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
             # 如果有异常发生，打印错误信息
             print("创建时间序列时发生错误，可能是因为已经重复创建了序列，但将继续执行后续代码。")
 
-        #刷写的数据转化，这里的i不是行号，好像是之前为了方便写入时候额外的引入的
+        #刷写的数据转化，现在确定DTDG的数据集里面，没有null值，可以省略对null值的处理
         for i in range(len(data_all)):
             local_schema = local_schemas[i].tolist()
             timestamps_ = (timestamp_all[i].tolist())
-            for j in range(len(timestamps_)):#转换时间戳的数据类型
-                timestamps_[j] = int(timestamps_[j])
+            # for j in range(len(timestamps_)):#转换时间戳的数据类型
+            #     timestamps_[j] = int(timestamps_[j])
             values_ = (data_all[i].tolist())
             if len(values_[0]) < 1:
                 continue
@@ -255,7 +269,7 @@ if __name__ == "__main__":
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3", RenGongTest1，TBM3_20000,RenGongTest2Less]
-    datasets = ["DTDG_TBM3_20000"]
+    datasets = ["DTDG65Test1CSV"]
     print(datasets)
     #todo 刷写盾构机的时间列上存在问题
     print("尝试删除分组文件完毕---，开始写入数据。")
@@ -268,6 +282,6 @@ if __name__ == "__main__":
             timefuncNo = 5
         else:
             timefuncNo = 6
-        select_time, space_cost = runDataset_column(dataset, dataset_path, timefuncNo, 0)
+        select_time, space_cost = runDataset_column(dataset, dataset_path, 7, 0)
         #writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
         print(dataset, select_time, space_cost / 1000)

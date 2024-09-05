@@ -60,6 +60,14 @@ def string_to_timestamp_6(str_time):#增加一种时间戳处理方式，用于�
         # 如果转换失败，返回0
         return 0
 
+def string_to_timestamp_7(datatime):
+    # 将datetime对象转换为UTC时间
+    timestamp_float = datatime.timestamp()
+    # 将UTC datetime对象转换为浮点型的Unix时间戳
+    # 将浮点型的Unix时间戳转换为长整型
+    timestamp_long = int(timestamp_float * 1000)
+    return timestamp_long
+
 def generate_unaligned_timeseries(file_path, noise_rate):
     df = pd.read_csv(file_path)
     data = np.array(df)
