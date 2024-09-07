@@ -11,7 +11,9 @@ import numpy as np
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 '''
-文件功能说明，Split不同的工作周期，截取TBM不同的工作周期段，分别生成移动段和拼装段，生成真实数据集的查询样式模拟，生成的文件是220多行的 outputFileName到一个csv文件中
+文件功能说明，Split不同的工作周期，截取TBM不同的工作周期段，分别生成移动段和拼装段，生成真实数据集的查询样式模拟，
+生成的文件是220多行的 outputFileName到一个csv文件中
+可以用于对先前实验中的与处理后的CSV文件进行读取，切分工作周期段之类的
 '''
 
 def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
