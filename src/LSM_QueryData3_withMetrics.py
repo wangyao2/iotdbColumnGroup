@@ -8,7 +8,7 @@ database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 '''
 文件功能说明，将样本查询的案例，读取CSV文件文件格式为(start,interval,endtime,startQuery)，我们只读取里面的开始时间和结束时间。
-重新播放历史查询样式，提交到iotdb中执行数据查询，用于播放历史查询数据
+重新播放历史查询样式，提交到iotdb中执行数据查询，用于播放历史查询数据，播放单个文件的查询样式
 第3版除了播放历史查询效率之外，还要统计查询时候的
 '''
 def folderSize(folder_path):
@@ -124,16 +124,18 @@ def generate_Arandom_EndTime():
     return endTime
 
 def runDataset_Query_column():
-
+    #返回值是数据查询的耗时轨迹
     ip = "127.0.0.1"
     username_ = "root"
     password_ = "root"
     session = Session(ip, port_, username_, password_, fetch_size=1024, zone_id="UTC+8")
     session.open(False)
 
-    df = pd.read_csv("F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\QueryASample2mroe.csv")
+    #df = pd.read_csv("F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\QueryASample2mroe.csv")#查询人工负载样式集用
+    df = pd.read_csv("..\src\GeneratedTBMQueryMode\DownMovingStage.csv")#查询TBM样式集用
     QueryDataSetColumnName = np.array(df.columns)
-    df = df[['start','interval','endtime']]#提取查询必要的列信息
+    #df = df[['start','interval','endtime']]#提取查询必要的列信息
+    df = df[['MovingStartTime','MovingEndTime']]#提取查询必要的列信息
     Query_data = np.array(df)#除了列名之外都加载进来了，这是一个二维的List结构
 
     print("加载查询样式集已经完毕，准备查询...start select.")
@@ -150,7 +152,7 @@ def runDataset_Query_column():
         LoopQueryCount = LoopQueryCount + 1
         print("查询次数： " + str(LoopQueryCount))
         startTime = str(oneQuery[0])
-        endTime = str(oneQuery[2])
+        endTime = str(oneQuery[1])
 
         QuerySql = "select * from root.lsmcl01.g0.d0 where time > " + startTime +" and time < " +  endTime
         #QuerySql2 = "select count(*) from root.lsmcl01.g0.d0 where time > " + startTime +" and time < " +  endTime

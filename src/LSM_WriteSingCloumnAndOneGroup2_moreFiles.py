@@ -197,17 +197,15 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                         print("发生问题的行" + str(count2))
                     print("insert One the batch is" + str(bacthnum) + " 批次号：" + str(count2))
                     bacthnum = bacthnum + batch_size
-                    time.sleep(1)
+                    time.sleep(0.5)
 
                     # 整10倍的时候，才写入调用刷写函数
                     if bacthnum % (batch_size * 10) == 0:
                         print("Flush One the batch is" + str(bacthnum))
-                        session.execute_non_query_statement(
-                            "flush"
-                        )
-                session.execute_non_query_statement(
-                    "flush"
-                )
+                        #session.execute_non_query_statement("flush")
+                # session.execute_non_query_statement(
+                #     "flush"
+                # )
 
     time.sleep(2)
     print("start select")
@@ -255,7 +253,7 @@ if __name__ == "__main__":
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3", RenGongTest1，TBM3_20000,RenGongTest2Less]
-    datasets = ["DTDG_TBM3_20000"]
+    datasets = ["RenGongTest1"]
     print(datasets)
     #todo 刷写盾构机的时间列上存在问题
     print("尝试删除分组文件完毕---，开始写入数据。")
