@@ -68,6 +68,11 @@ def string_to_timestamp_7(datatime):
     timestamp_long = int(timestamp_float * 1000)
     return timestamp_long
 
+def string_to_timestamp_8(str_time):
+    dt = time.strptime(str_time, "%Y-%m-%d %H:%M:%S")
+    ts = int(time.mktime(dt)) * 1000
+    return ts
+
 def generate_unaligned_timeseries(file_path, noise_rate):
     df = pd.read_csv(file_path)
     data = np.array(df)

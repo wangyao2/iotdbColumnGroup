@@ -197,15 +197,15 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                         print("发生问题的行" + str(count2))
                     print("insert One the batch is" + str(bacthnum) + " 批次号：" + str(count2))
                     bacthnum = bacthnum + batch_size
-                    time.sleep(0.5)
+                    time.sleep(0.2)
 
                     # 整10倍的时候，才写入调用刷写函数
-                    if bacthnum % (batch_size * 10) == 0:
+                    if bacthnum % (batch_size * 1) == 0:
                         print("Flush One the batch is" + str(bacthnum))
-                        #session.execute_non_query_statement("flush")
-                # session.execute_non_query_statement(
-                #     "flush"
-                # )
+                        session.execute_non_query_statement("flush")
+                session.execute_non_query_statement(
+                    "flush"
+                )
 
     time.sleep(2)
     print("start select")

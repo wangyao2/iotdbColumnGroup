@@ -76,7 +76,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
         index_start = index_end + 1 #这三行记录每一个文件对应的行数位置和下标
 
     # 使用to_csv方法保存DataFrame到CSV文件，读取数据之后，直接全都刷到csv里面，方便后端多次实验的时候快速读取数据
-    df.to_csv('F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\dataset\DTDG65Original\DTDG0_ALL619-0901.csv', index=True)
+    #df.to_csv('F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\dataset\DTDG65Original\DTDG0_ALL619-0901.csv', index=True)
     print()
     global_schema = np.array([])
     local_schemas = list()
@@ -204,7 +204,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                 )
         else: # false，那么按照数据的实际点数去划分数据集
             bacthnum = 0 #记录批次,同时也控制行数
-            batch_size=1000 #一批的行数，也就是控制多少行刷鞋一次进去###########################################
+            batch_size=5000 #一批的行数，也就是控制多少行刷鞋一次进去###########################################
             linesOfTheDataset = len(device_ids)  # 获得数据集一共有多少行
             count2 = 0
             print("批次大小：" + str(batch_size))
@@ -231,7 +231,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                     print("发生问题的行" + str(count2))
                 print("insert One the batch is" + str(bacthnum) + " 批次号：" + str(count2))
                 bacthnum = bacthnum + batch_size
-                time.sleep(0.2)#直接在这里控制数据刷写，写入的时间
+                #time.sleep(0.1)#直接在这里控制数据刷写，写入的时间
 
                 # 控制倍数，在*号（乘号后面），例如整10倍的时候，才写入调用刷写函数
                 if bacthnum % (batch_size * 2) == 0:
@@ -294,7 +294,7 @@ if __name__ == "__main__":
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3",
     # RenGongTest1，TBM3_20000,RenGongTest2Less DTDG65Test1CSV DTDG65Original
-    datasets = ["DTDG65Original"]
+    datasets = ["DTDG65Test1CSV"]
     print(datasets)
     #todo 刷写盾构机的时间列上存在问题
     print("尝试删除分组文件完毕---，开始写入数据。")

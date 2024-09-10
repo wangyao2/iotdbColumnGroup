@@ -10,6 +10,7 @@ port_ = "6667"
 文件功能说明，将样本查询的案例，读取CSV文件文件格式为(start,interval,endtime,startQuery)，我们只读取里面的开始时间和结束时间。
 重新播放历史查询样式，提交到iotdb中执行数据查询，用于播放历史查询数据，播放单个文件的查询样式
 第3版除了播放历史查询效率之外，还要统计查询时候的
+用来播放人工数据集的查询负载样式
 '''
 def folderSize(folder_path):
     # assign size
@@ -23,7 +24,7 @@ def folderSize(folder_path):
 
     return size
 
-def list_to_csv(file_name, data_list):
+def list_to_csv(file_name, data_list, methodName, Datasize, DataSetName):
     """
     将列表中的每个元素写入到CSV文件的一行。
 
@@ -31,7 +32,8 @@ def list_to_csv(file_name, data_list):
     file_name (str): CSV文件的名称。
     data_list (list): 包含要写入数据的列表。
     """
-    with open(file_name, 'w', newline='') as csvfile:
+    file_Name = DataSetName + "_" + methodName + "_" + Datasize + "_" +file_name#给文件名字打上前缀
+    with open(file_Name, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         for item in data_list:
             writer.writerow([item])
@@ -131,11 +133,12 @@ def runDataset_Query_column():
     session = Session(ip, port_, username_, password_, fetch_size=1024, zone_id="UTC+8")
     session.open(False)
 
-    #df = pd.read_csv("F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\QueryASample2mroe.csv")#查询人工负载样式集用
-    df = pd.read_csv("..\src\GeneratedTBMQueryMode\DownMovingStage.csv")#查询TBM样式集用
+    df = pd.read_csv("F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\QueryASample2mroe.csv")#查询人工负载样式集用
+    #df = pd.read_csv("..\src\GeneratedTBMQueryMode\DownMovingStage.csv")#查询TBM样式集用
+
     QueryDataSetColumnName = np.array(df.columns)
-    #df = df[['start','interval','endtime']]#提取查询必要的列信息
-    df = df[['MovingStartTime','MovingEndTime']]#提取查询必要的列信息
+    df = df[['start','endtime']]#提取查询必要的列信息
+    #df = df[['MovingStartTime','MovingEndTime']]#提取查询必要的列信息
     Query_data = np.array(df)#除了列名之外都加载进来了，这是一个二维的List结构
 
     print("加载查询样式集已经完毕，准备查询...start select.")
@@ -191,6 +194,8 @@ if __name__ == "__main__":
     dataset_root = "dataset/"
     QurySelectTimeTraceH = runDataset_Query_column()
     #QurySelectTimeTraceH = [1, 2, 3, 4, 5]
-    #list_to_csv('outputX_orignalIotdb.csv', QurySelectTimeTraceH)
-    list_to_csv('outputX_YaosN1.csv', QurySelectTimeTraceH)
+    #list_to_csv('outputX_orignalIotdb.csv', QurySelectTimeTraceH)  _agine1
+    list_to_csv('DatasetQueryTrace.csv', QurySelectTimeTraceH,
+                "SizeTired","500KB","RenGong1")
+
 

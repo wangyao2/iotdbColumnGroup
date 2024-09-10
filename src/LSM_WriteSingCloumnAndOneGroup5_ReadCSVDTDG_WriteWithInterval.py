@@ -65,16 +65,11 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
         print("当前处理文件为：" + file_name + "======")
         #我认为，每处理一个新文件的时候，都要去重新生成对应的全局变量
         df_onefile = pd.read_csv(os.path.join(dataset_path, file_name))
-        df_onefile.drop(df_onefile.index[0], inplace=True)#删掉第一行的空数据，不需要删除任何列
-        df_onefile[['AutoKey', '时间']] = df_onefile[['时间', 'AutoKey']]#交换两列，把第一列放到前面去
-        sequenced_DF_OneFile = df_onefile.iloc[::-1]  # 把里面的数据全部倒序排列
-        leng = sequenced_DF_OneFile.shape[0]#4列数据的行数都是一样的，暂时忽略
+        leng = df_onefile.shape[0]#4列数据的行数都是一样的，暂时忽略
         print("读取了文件{}, 准备写入的行数为：{}".format(file_name, str(leng)))
-        df = pd.concat([df, sequenced_DF_OneFile], ignore_index=True)
-        index_end = index_end + leng
-        files_indeics[file_name] = [index_start,index_end]#一个字典，记录每一个文件对应的行数
-        index_start = index_end + 1 #这三行记录每一个文件对应的行数位置和下标
-
+        df = pd.concat([df, df_onefile], ignore_index=True)
+    print("CSV文件读取完毕!")
+    df = df.drop(df.columns[0], axis=1)
     # 使用to_csv方法保存DataFrame到CSV文件，读取数据之后，直接全都刷到csv里面，方便后端多次实验的时候快速读取数据
     global_schema = np.array([])
     local_schemas = list()
@@ -98,22 +93,16 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
     print("完成行数过滤！")
 
     for i in range(len(device_data[:, 0])):#转换时间戳,这里是选取第一列作为时间戳
-        if time_func == 5:
-            device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
-        elif time_func == 7:
-            device_data[i, 0] = string_to_timestamp_7(device_data[i, 0])
-        elif time_func == 6:
-            device_data[i, 0] = string_to_timestamp_6(device_data[i, 0])
+        if time_func == 8:#这里的索引已经无意义
+            device_data[i, 0] = string_to_timestamp_8(device_data[i, 0])
         else:
             device_data[i, 0] = int(device_data[i, 0])
         # device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
 
     #这一组序列3的for循环，只针对真实的盾构机数据集生效
     for i in range(len(device_data[:, 3])):#转换时间戳,这里是把中心数据给处理掉
-        if time_func == 7:
-            device_data[i, 3] = string_to_timestamp_7(device_data[i, 3])
-        elif time_func == 6:
-            device_data[i, 3] = string_to_timestamp_6(device_data[i, 3])
+        if time_func == 8:
+            device_data[i, 3] = string_to_timestamp_8(device_data[i, 3])
         else:
             device_data[i, 3] = int(device_data[i, 3])
 
@@ -192,7 +181,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
             count2 = 0
             print("批次大小：" + str(batch_size))
             #10MB，记录tsfile设置MB数量，2000行一刷写，是TSFile对应10MB，参数设定batch_size = 1000，后面的控制倍数系数取2
-            #3.37MB 在IOTDB系统内部设置参数，控制memtable的大小是5*1024*1024进行实验
+            #3.37MB，不在python中控制刷写，只在IOTDB系统内部设置参数，控制memtable的大小是5*1024*1024进行实验
             while bacthnum < linesOfTheDataset:
                 # if count2 == 50: #控制写入的批次不要太多
                 #     break
@@ -214,7 +203,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                     print("发生问题的行" + str(count2))
                 print("insert One the batch is" + str(bacthnum) + " 批次号：" + str(count2))
                 bacthnum = bacthnum + batch_size
-                time.sleep(0.2)#直接在这里控制数据刷写，写入的时间
+                #time.sleep(0.05)#直接在这里控制数据刷写，写入的时间
 
                 # 控制倍数，在*号（乘号后面），例如整10倍的时候，才写入调用刷写函数
                 if bacthnum % (batch_size * 2) == 0:
@@ -290,6 +279,6 @@ if __name__ == "__main__":
             timefuncNo = 5
         else:
             timefuncNo = 6
-        select_time, space_cost = runDataset_column(dataset, dataset_path, 7, 0)
+        select_time, space_cost = runDataset_column(dataset, dataset_path, 8, 0)
         #writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
         print(dataset, select_time, space_cost / 1000)
