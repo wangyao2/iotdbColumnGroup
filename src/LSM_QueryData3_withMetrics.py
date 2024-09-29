@@ -36,7 +36,8 @@ def list_to_csv(file_name, data_list, methodName, Datasize, DataSetName):
     with open(file_Name, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         for item in data_list:
-            writer.writerow([item])
+            #todo 等会测试同时刷写IOTPS数量
+            writer.writerow(item)
 
 def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
     res_file_dir = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\esult-autoaligned.csv"
@@ -132,8 +133,8 @@ def runDataset_Query_column():
     password_ = "root"
     session = Session(ip, port_, username_, password_, fetch_size=1024, zone_id="UTC+8")
     session.open(False)
-
-    df = pd.read_csv("F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\QueryASample2mroe.csv")#查询人工负载样式集用
+    print("程序开始时间：" + str(time.time()))
+    df = pd.read_csv("F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\QueryDataset\RenGongASample_interval5Hours.csv")#查询人工负载样式集用
     #df = pd.read_csv("..\src\GeneratedTBMQueryMode\DownMovingStage.csv")#查询TBM样式集用
 
     QueryDataSetColumnName = np.array(df.columns)
@@ -144,10 +145,11 @@ def runDataset_Query_column():
     print("加载查询样式集已经完毕，准备查询...start select.")
 
     LoopQueryCount = 0#记录
-    terminateEndCondition = 500#在这里 控制修改提交的查询次数
+    terminateEndCondition = 900#在这里 控制修改提交的查询次数
 
     OverAll_select_time = 0#全局总览的查询时间，记录下全部数据的
     QurySelectTimeTrace = [] # 记录每一个查询的耗时
+    AllPoints = 0#用来将留查询产生的总点数
     for oneQuery in Query_data: #获取到一行的样本集，
         if LoopQueryCount == terminateEndCondition:
             print("循环查询被数量条件终止，设定的数量条件为: " + str(terminateEndCondition))
@@ -165,11 +167,9 @@ def runDataset_Query_column():
         #统计查询时间汇总
         start_select_time = time.time()#记录每一条查询所需要的耗时
         Sessiondataset = session.execute_query_statement(QuerySql)
-        #CountsResult = session.execute_query_statement(QuerySql2)
-
         end_select_time = time.time()
+
         oneQurySelectTimeCost = end_select_time - start_select_time  # 记录一条数据查询的时间耗时
-        QurySelectTimeTrace.append(oneQurySelectTimeCost)#每一次查询都把查询的结果记录下来
         OverAll_select_time = OverAll_select_time + oneQurySelectTimeCost
 
         #统计查询出来的所有点数，作为点数吞吐量
@@ -180,13 +180,19 @@ def runDataset_Query_column():
         row_count2, column_count2 = df_output2.shape
 
         OverAll_PointNums = columnLength * row_count2 #统计出来总的查询点数
+        onetrace = [oneQurySelectTimeCost, OverAll_PointNums, row_count2]
+        AllPoints = AllPoints + OverAll_PointNums
+        QurySelectTimeTrace.append(onetrace)  # 每一次查询都把查询的结果记录下来
         print("查询总点数：",str(OverAll_PointNums),"行数:",row_count2,"列数:",column_count2)#打印输出所有的查询到的点数
-
-        time.sleep(0.1)# 在这里控制修改每一次查询提交的时间间隔
+        time.sleep(0.02)# 在这里控制修改每一次查询提交的时间间隔0.02
 
     # for queryCostOneQuery in QurySelectTimeTrace:
     #     print(str(queryCostOneQuery))
-    print("查询条数"+str(terminateEndCondition) +",总耗时"+str(OverAll_select_time))
+    print("====")
+    print("查询条数"+str(terminateEndCondition) +"；查询总耗时"+str(OverAll_select_time))
+    print("查询结果总点数：" + str(AllPoints))
+    print("程序结束：" + str(time.time()))
+
     return QurySelectTimeTrace
 
 if __name__ == "__main__":
@@ -194,8 +200,6 @@ if __name__ == "__main__":
     dataset_root = "dataset/"
     QurySelectTimeTraceH = runDataset_Query_column()
     #QurySelectTimeTraceH = [1, 2, 3, 4, 5]
-    #list_to_csv('outputX_orignalIotdb.csv', QurySelectTimeTraceH)  _agine1
-    list_to_csv('DatasetQueryTrace.csv', QurySelectTimeTraceH,
-                "SizeTired","500KB","RenGong1")
-
-
+    #list_to_csv('outputX_orignalIotdb.csv', QurySelectTimeTraceH)  _agine1 IoTDBOring
+    #list_to_csv('DatasetQueryTrace3.csv', QurySelectTimeTraceH,"Pres","1_9MB","RenGong1"，RoundOldTime)
+    list_to_csv('5Hours_DatasetQueryTrace1_withRA3.csv', QurySelectTimeTraceH,"Pres","5MB","RenGong1")

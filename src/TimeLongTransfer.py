@@ -34,13 +34,16 @@ def list_to_csv(file_name, data_list):
 # 示例使用
 
 if __name__ == "__main__":
-    print(str(Long_to_Time(1720975690000)))
-    print(str(Long_to_Time(1720978152000)))
-    print(str(Long_to_Time(1716716790594)))
+    #print(str(Long_to_Time(1706700000000 + 339504 * 1000)))
+    print(str(Long_to_Time(1706716800000)))
+    print(str(Long_to_Time(1709308800000)))
+    print(str(Long_to_Time(1706723700000)))
+    print(str(Long_to_Time(1709315700000)))
+    print(str(date_to_Long("1970-01-01 08:00:00")))
 
-    print(str(date_to_Long("2024-01-31 16:00:00")))
+    print(str(date_to_Long("1970-01-01 08:05:00")))
     QurySelectTimeTraceH = [0.1, 0.2, 0.3, 0.4, 0.5]  # 假设这是您的数据列表
-    list_to_csv('outputX_Yaos2.csv', QurySelectTimeTraceH)
+    #list_to_csv('outputX_Yaos2.csv', QurySelectTimeTraceH)
     #
     #
     # # 创建数据

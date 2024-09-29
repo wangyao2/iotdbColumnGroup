@@ -176,15 +176,23 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                 )
         else: # false，那么按照数据的实际点数去划分数据集
             bacthnum = 0 #记录批次,同时也控制行数
-            batch_size=1000 #一批的行数，也就是控制多少行刷鞋一次进去###########################################
+            batch_size = 400 ##原本默认是1000行一批的行数，也就是控制多少行刷鞋一次进去###########################################
             linesOfTheDataset = len(device_ids)  # 获得数据集一共有多少行
             count2 = 0
             print("批次大小：" + str(batch_size))
-            #10MB，记录tsfile设置MB数量，2000行一刷写，是TSFile对应10MB，参数设定batch_size = 1000，后面的控制倍数系数取2
-            #3.37MB，不在python中控制刷写，只在IOTDB系统内部设置参数，控制memtable的大小是5*1024*1024进行实验
+            #DTDG数据集的刷写批次和文件大小记录
+            # 10MB，记录tsfile设置MB数量
+            # 2000行一刷写，是TSFile对应10MB，参数设定batch_size = 1000，后面的控制倍数系数取2
+            # 不在python中控制刷写，只在IOTDB系统内部设置参数，内部控制刷写大小的话，需要调整tSFileProcesser的第686行，控制memtable的大小是5*1024*1024进行实验
+            # mem设置5MB，刷写的文件结果为3.37MB
+            # 一次写1000行，对应5MB
+            # 一次写400行，对应2MB
+            # 一次写140行，对应600kb~700kb
+            # 一次写150行，对应800kb
+
             while bacthnum < linesOfTheDataset:
-                # if count2 == 50: #控制写入的批次不要太多
-                #     break
+                if count2 == 10: #控制写入的批次不要太多
+                    break
                 device_i = device_ids[int(bacthnum):int(bacthnum + batch_size)]
                 timest = timestamps_[int(bacthnum):int(bacthnum + batch_size)]
                 measurements_l = measurements_list_[int(bacthnum):int(bacthnum + batch_size)]
@@ -206,14 +214,14 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                 #time.sleep(0.05)#直接在这里控制数据刷写，写入的时间
 
                 # 控制倍数，在*号（乘号后面），例如整10倍的时候，才写入调用刷写函数
-                if bacthnum % (batch_size * 2) == 0:
+                if bacthnum % (batch_size * 1) == 0:
                     print("Flush One the batch is" + str(bacthnum))
-            #         session.execute_non_query_statement(
-            #             "flush"
-            #         )
-            # session.execute_non_query_statement(
-            #     "flush"
-            # )
+                    session.execute_non_query_statement(
+                        "flush"
+                    )
+            session.execute_non_query_statement(
+                "flush"
+            )
 
     time.sleep(2)
     print("start select")
@@ -266,7 +274,7 @@ if __name__ == "__main__":
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3",
     # RenGongTest1，TBM3_20000,RenGongTest2Less DTDG65Test1CSV DTDG65Original
-    datasets = ["DTDG65Original"]
+    datasets = ["DTDG65Original"]#一共104356行，506列的数据点，总大小227MB
     print(datasets)
     #todo 刷写盾构机的时间列上存在问题
     print("尝试删除分组文件完毕---，开始写入数据。")

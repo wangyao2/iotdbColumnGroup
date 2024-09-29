@@ -21,7 +21,7 @@ def list_to_csv(file_name, data_list, methodName, Datasize, DataSetName):
     with open(file_Name, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         for item in data_list:
-            writer.writerow([item])
+            writer.writerow(item)
 
 def runDataset_Query_column(dataset_path):
     #返回值是数据查询的耗时轨迹
@@ -63,7 +63,7 @@ def runDataset_Query_column(dataset_path):
     print("加载查询样式集已经完毕，准备查询...start select.")
 
     LoopQueryCount = 0#记录
-    terminateEndCondition = 500#在这里 控制修改提交的查询次数
+    terminateEndCondition = 100#在这里 控制修改提交的查询次数
 
     OverAll_select_time = 0#全局总览的查询时间，记录下全部数据的
     QurySelectTimeTrace = [] # 记录每一个查询的耗时
@@ -117,7 +117,7 @@ def runDataset_Query_column2_WithMoreRings(dataset_path):
     session.open(False)
 
     file_list = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]#只要csv文件
-    OneRing_Filelist = [f for f in file_list if "OneRing" in f]
+    OneRing_Filelist = [f for f in file_list if "OneRing" in f]#在这里过滤使用哪一个查询样式集
 
     df = pd.DataFrame()
     for file_name in OneRing_Filelist:
@@ -139,7 +139,7 @@ def runDataset_Query_column2_WithMoreRings(dataset_path):
 #where time > 1724995039000 and time < 1725024739000
     Query_data = []#一次查询对应了多环数据的查询
     templist = []#临时存放环内结果
-    SegmentRings = 3 #控制一次查询涉及的环数
+    SegmentRings = 10 #控制一次查询涉及的环数，默认是10环，我们选择5,10,20,25，30
 
     for i in range(len(OrignalQuery_data) - SegmentRings + 1):
         for g in range(SegmentRings):
@@ -155,10 +155,11 @@ def runDataset_Query_column2_WithMoreRings(dataset_path):
     print("加载查询样式集已经完毕，准备查询...start select.")
 
     LoopQueryCount = 0#记录
-    terminateEndCondition = 500#在这里 控制修改提交的查询次数
-
+    terminateEndCondition = len(Query_data)#在这里 控制修改提交的查询次数
+    #terminateEndCondition = 300#在这里 控制修改提交的查询次数
     OverAll_select_time = 0#全局总览的查询时间，记录下全部数据的
     QurySelectTimeTrace = [] # 记录每一个查询的耗时
+    AllPoints = 10#用来将留查询产生的总点数
     for oneQuery in Query_data: #获取到一行的样本集，
         if LoopQueryCount == terminateEndCondition:
             print("循环查询被数量条件终止，设定的数量条件为: " + str(terminateEndCondition))
@@ -176,28 +177,30 @@ def runDataset_Query_column2_WithMoreRings(dataset_path):
         #统计查询时间汇总
         start_select_time = time.time()#记录每一条查询所需要的耗时
         Sessiondataset = session.execute_query_statement(QuerySql)
-        #CountsResult = session.execute_query_statement(QuerySql2)
-
         end_select_time = time.time()
+
         oneQurySelectTimeCost = end_select_time - start_select_time  # 记录一条数据查询的时间耗时
         OverAll_select_time = OverAll_select_time + oneQurySelectTimeCost
 
         #统计查询出来的所有点数，作为点数吞吐量
-        column_names = Sessiondataset.get_column_names()#获取列名
-        columnLength = len(column_names) - 1 #减1是因为要排除掉一个时间列
+        # column_names = Sessiondataset.get_column_names()#获取列名
+        # columnLength = len(column_names) - 1 #减1是因为要排除掉一个时间列
 
         df_output2 = Sessiondataset.todf()#直接调用todf转化成pandas结构，然后调用shape获取内部的行数
         row_count2, column_count2 = df_output2.shape
 
-        OverAll_PointNums = columnLength * row_count2 #统计出来总的查询点数
+        OverAll_PointNums = column_count2 * row_count2 #统计出来总的查询点数
         print("查询总点数：",str(OverAll_PointNums),"行数:",row_count2,"列数:",column_count2)#打印输出所有的查询到的点数
+        AllPoints = AllPoints + OverAll_PointNums
         onetrace = [oneQurySelectTimeCost,OverAll_PointNums,row_count2]
         QurySelectTimeTrace.append(onetrace)#每一次查询都把查询的结果记录下来
-        time.sleep(0.08)# 在这里控制修改每一次查询提交的时间间隔
+        time.sleep(0.01)# 在这里控制修改每一次查询提交的时间间隔
 
     # for queryCostOneQuery in QurySelectTimeTrace:
     #     print(str(queryCostOneQuery))
+    print("====")
     print("查询条数"+str(terminateEndCondition) +",查询所有数据的总耗时"+str(OverAll_select_time))
+    print("查询结果总点数：" + str(AllPoints))
     return QurySelectTimeTrace
 
 if __name__ == "__main__":
@@ -205,13 +208,23 @@ if __name__ == "__main__":
     #QurySelectTimeTraceH = runDataset_Query_column(dataset_path)
     QurySelectTimeTraceH = runDataset_Query_column2_WithMoreRings(dataset_path)
     #QurySelectTimeTraceH = [1, 2, 3, 4, 5]
-    #list_to_csv('outputX_orignalIotdb.csv', QurySelectTimeTraceH)
-    list_to_csv('DatasetQueryTrace.csv', QurySelectTimeTraceH,
-                "SizeTired", "500KB", "RenGong1")
+    #list_to_csv('outputX_orignalIotdb.csv', QurySelectTimeTraceH) RoundOldTime
+    list_to_csv('DatasetQueryTrace408_Range_10Rings1RA.csv',
+                QurySelectTimeTraceH,"RoundOldTime", "1_3MB", "DTDG")
 
     '''
-    Pres 是自己编写的方法，None是不执行任何合并
-    IoTDBOrginal 是原生的方法
+    None是不执行任何合并，保持全部的小文件
+    Pres 是自己编写的方法
+    RoundOldTime 按照文件的生成时间顺序，每次选择提交合并，一次提交合并25个文件
+    IoTDBOrginal 是原生的方法,一次提交4批文件每一批4个
+    TimeTired是对比论文方法
     
+    Range_5Rings，这种文件名是默认400条查询全部执行，然后一次查询的跨度是5环数据
+    
+    Range_5Rings，这种文件名是默认400条查询全部执行，然后一次查询的跨度是5环数据
+    
+    对于DTDG数据集，根据查询频率状态，调整部分iotdb内部参数
+    查询负载收集器，按照每80个查询一收集
+    阈值扩张阈值与80个一致
     '''
 

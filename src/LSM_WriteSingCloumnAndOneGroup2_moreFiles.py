@@ -53,6 +53,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
     finally:
         pass
 
+    start_select_time = time.time()
     for file_name in file_list:
         if not file_name.endswith(".csv"):
             continue
@@ -176,9 +177,10 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                 linesOfTheDataset = len(device_ids)  # 获得数据集一共有多少行
                 count2 = 0
                 print("批次大小：" + str(batch_size))
+                print("文件总行数："  + str(linesOfTheDataset))
                 while bacthnum < linesOfTheDataset:
-                    if count2 == 50: #控制写入的批次不要太多
-                        break
+                    # if count2 == 50: #控制写入的批次不要太多
+                    #     break
                     device_i = device_ids[int(bacthnum):int(bacthnum + batch_size)]
                     timest = timestamps_[int(bacthnum):int(bacthnum + batch_size)]
                     measurements_l = measurements_list_[int(bacthnum):int(bacthnum + batch_size)]
@@ -197,10 +199,12 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                         print("发生问题的行" + str(count2))
                     print("insert One the batch is" + str(bacthnum) + " 批次号：" + str(count2))
                     bacthnum = bacthnum + batch_size
-                    time.sleep(0.2)
-
-                    # 整10倍的时候，才写入调用刷写函数
-                    if bacthnum % (batch_size * 1) == 0:
+                    time.sleep(0.1)
+                    #整10倍的时候，才写入调用刷写函数，暂时用于人工数据集的写入
+                    #人工集1的行数设定：25是5MB文件，其他的分别取3,10,15,20
+                    # 10 批次，对应1.9MB
+                    # 5批次，对应990kb
+                    if bacthnum % (batch_size * 5) == 0:
                         print("Flush One the batch is" + str(bacthnum))
                         session.execute_non_query_statement("flush")
                 session.execute_non_query_statement(
@@ -212,7 +216,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
     session.execute_non_query_statement(
         "merge"
     )
-    start_select_time = time.time()
+
     # session.execute_query_statement(
     #     "select * from root.lsmcl01.g0.d0"
     # )
@@ -268,4 +272,4 @@ if __name__ == "__main__":
             timefuncNo = 6
         select_time, space_cost = runDataset_column(dataset, dataset_path, timefuncNo, 0)
         #writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
-        print(dataset, select_time, space_cost / 1000)
+        print(dataset, select_time, space_cost)
