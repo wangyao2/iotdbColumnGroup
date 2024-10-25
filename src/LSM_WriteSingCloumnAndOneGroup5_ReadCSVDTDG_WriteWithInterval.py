@@ -176,7 +176,7 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                 )
         else: # false，那么按照数据的实际点数去划分数据集
             bacthnum = 0 #记录批次,同时也控制行数
-            batch_size = 400 ##原本默认是1000行一批的行数，也就是控制多少行刷鞋一次进去###########################################
+            batch_size = 1000 ##原本默认是1000行一批的行数，也就是控制多少行刷鞋一次进去###########################################
             linesOfTheDataset = len(device_ids)  # 获得数据集一共有多少行
             count2 = 0
             print("批次大小：" + str(batch_size))

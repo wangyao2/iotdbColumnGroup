@@ -11,6 +11,8 @@ port_ = "6667"
 重新播放历史查询样式，提交到iotdb中执行数据查询，用于播放历史查询数据，播放单个文件的查询样式
 第3版除了播放历史查询效率之外，还要统计查询时候的
 用来播放人工数据集的查询负载样式
+
+补充内容，基于LSM_QueryData3的基础上开发而来，用来改变定步长的查询涉及的范围，测试查询内容
 '''
 def folderSize(folder_path):
     # assign size
@@ -38,30 +40,6 @@ def list_to_csv(file_name, data_list, methodName, Datasize, DataSetName):
         for item in data_list:
             #todo 等会测试同时刷写IOTPS数量
             writer.writerow(item)
-
-def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
-    res_file_dir = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\esult-autoaligned.csv"
-    if not os.path.exists(res_file_dir):
-        res_df = pd.DataFrame(columns=["dataset", "sample_method", "storage_method", "select_time", "space_cost", "flush_time"])
-    else:
-        res_df = pd.read_csv(res_file_dir)
-
-    if storage_method == "autoaligned":
-        flush_time = compute_flush_time()
-    res_df.loc[res_df.shape[0]] = [dataset, sample_method, storage_method, select_time, space_cost, flush_time]
-    res_df.to_csv(res_file_dir, index=False)
-
-def compute_flush_time():
-    flush_file_path = "iotdb-server-and-cli/iotdb-server-autoalignment/sbin/time_costs.csv"
-    total_time = 0
-    with open(flush_file_path, "r") as f:
-        lines = f.readlines()
-    for line in lines:
-        line = line.replace("\n", "")
-        elements = line.split(" ")
-        time_= float(elements[-1][:-1])
-        total_time += time_
-    return total_time
 
 def generate_random_date_YMD():#编写随机生成，日期 yyyy-mm-dd
     print("生成查询访问日期...")
@@ -126,6 +104,9 @@ def generate_Arandom_EndTime():
     endTime = "" + str(2020) + "-" + str(11) + "-" + str(23) + "T" + str(hour) + ":" + str(minute) + ":" + str(second)
     return endTime
 
+'''
+我们在这个函数里面，
+'''
 def runDataset_Query_column():
     #返回值是数据查询的耗时轨迹
     ip = "127.0.0.1"
@@ -138,7 +119,7 @@ def runDataset_Query_column():
     #df = pd.read_csv("..\src\GeneratedTBMQueryMode\DownMovingStage.csv")#查询TBM样式集用
 
     QueryDataSetColumnName = np.array(df.columns)
-    df = df[['start','endtime']]#提取查询必要的列信息
+    df = df[['start','interval']]#提取查询必要的列信息
     #df = df[['MovingStartTime','MovingEndTime']]#提取查询必要的列信息
     Query_data = np.array(df)#除了列名之外都加载进来了，这是一个二维的List结构
 
@@ -156,10 +137,15 @@ def runDataset_Query_column():
             break
         LoopQueryCount = LoopQueryCount + 1
         print("查询次数： " + str(LoopQueryCount))
-        startTime = str(oneQuery[0])
-        endTime = str(oneQuery[1])
+        startTime = oneQuery[0]
+        Intervall = oneQuery[1]
+        Intervall = Intervall * 0.8 #通过调控本参数，来实现对查询范围的调控,系数包括03 05 08 10 12
+        # Xishu1的意思是，查询间隔基于当前时刻为多少
+        endTime = startTime + int(Intervall)
+        #这一块代码，增加了选择的行数和批次范围
 
-        QuerySql = "select * from root.lsmcl01.g0.d0 where time > " + startTime +" and time < " +  endTime
+
+        QuerySql = "select * from root.lsmcl01.g0.d0 where time > " + str(startTime) +" and time < " +  str(endTime)
         #QuerySql2 = "select count(*) from root.lsmcl01.g0.d0 where time > " + startTime +" and time < " +  endTime
         print("设定的SQL语句是：" + QuerySql)
         #Sessiondataset = session.execute_query_statement(QuerySql)
@@ -178,14 +164,13 @@ def runDataset_Query_column():
 
         df_output2 = Sessiondataset.todf()#直接调用todf转化成pandas结构，然后调用shape获取内部的行数
         row_count2, column_count2 = df_output2.shape
-        #row_count2, column_count2 = 0, 0
 
         OverAll_PointNums = columnLength * row_count2 #统计出来总的查询点数
         onetrace = [oneQurySelectTimeCost, OverAll_PointNums, row_count2]
         AllPoints = AllPoints + OverAll_PointNums
         QurySelectTimeTrace.append(onetrace)  # 每一次查询都把查询的结果记录下来
         print("查询总点数：",str(OverAll_PointNums),"行数:",row_count2,"列数:",column_count2)#打印输出所有的查询到的点数
-        time.sleep(0.02)# 在这里控制修改每一次查询提交的时间间隔0.02
+        time.sleep(0.02)# 在这里控制修改每一次查询提交的时间间隔0.02s。0.3系数的查询要拉长延迟到0.04秒，不然每一个查询的到达时间不一样。1.2系数的话，要把延迟缩短到0.01,因为处理还需要时间
 
     # for queryCostOneQuery in QurySelectTimeTrace:
     #     print(str(queryCostOneQuery))
@@ -201,7 +186,8 @@ if __name__ == "__main__":
     dataset_root = "dataset/"
     QurySelectTimeTraceH = runDataset_Query_column()
     #QurySelectTimeTraceH = [1, 2, 3, 4, 5]
-    #list_to_csv('outputX_orignalIotdb.csv', QurySelectTimeTraceH)  _agine1 IoTDBOring
-    #list_to_csv('DatasetQueryTrace3.csv', QurySelectTimeTraceH,"Pres","1_9MB","RenGong1"，RoundOldTime)
-    list_to_csv('DatasetQueryTrace1_RANew2.csv', QurySelectTimeTraceH,"Pres","1_9mb","RenGong1")
-    #todo 明天继续测试人工数据集在其他场景下的
+    #list_to_csv('outputX_orignalIotdb.csv', QurySelectTimeTraceH)  _agine1 IoTDBOrignal
+    #list_to_csv('DatasetQueryTrace3.csv', QurySelectTimeTraceH,"Pres","1_9MB","RenGong1"，RoundOldTime，IoTDBOrignal，TimeTired)
+    list_to_csv('QueryRange_DatasetQueryTrace_XiShu08_New6.csv',
+                QurySelectTimeTraceH,"Pres","900kb","RenGong1")
+    # 文件名里的Xishu1的意思是，查询间隔基于当前时刻为多少，带有标记New的是新版Pres算法

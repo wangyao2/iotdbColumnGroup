@@ -14,6 +14,8 @@ port_ = "6667"
 runDataset_Query_column是一次执行一环的查询
 runDataset_Query_column2_WithMoreRings是一次执行多环的查询，比如，一次查询3环的隧道施工质量
 例如工程师实际在统计每三环的数据的时候，将会有重复的数据被查询。
+
+4-1版本是调整查询请求到达的样式，改变访问的次序，打乱访问的时序性和顺序性
 '''
 
 def list_to_csv(file_name, data_list, methodName, Datasize, DataSetName):
@@ -139,7 +141,7 @@ def runDataset_Query_column2_WithMoreRings(dataset_path):
 #where time > 1724995039000 and time < 1725024739000
     Query_data = []#一次查询对应了多环数据的查询
     templist = []#临时存放环内结果
-    SegmentRings = 10 #控制一次查询涉及的环数，默认是10环，我们选择3,5,8, 10,12,     20,25，30
+    SegmentRings = 10 #控制一次查询涉及的环数，默认是10环，我们选择5,10,20,25，30
 
     for i in range(len(OrignalQuery_data) - SegmentRings + 1):
         for g in range(SegmentRings):
@@ -150,17 +152,38 @@ def runDataset_Query_column2_WithMoreRings(dataset_path):
         Query_data.append([first_element,last_element])
         templist = []
 
+    SrewQuery_data = []
+    # 这一块增加对QueryData的修改
+    percentage = 0.05 # 按照每10%进行切分，基于2MB文件测试，改变查询到达的随机样式
+    # 调整随机的比例大小
+    # 0.02；8
+    # 0.05；20
+    # 0.1；40
+    # 0.2；80
+    # 0.25；100
+    # 0.3；120
+    chunk_size = int(len(Query_data) * percentage)
+    # 初始化SrewQuery_data列表,循环切分Query_data
+    # 把Query_data按照10%的比例拆成多个子序列
+    for i in range(0, len(Query_data), chunk_size):
+        SrewQuery_data.append(Query_data[i:i + chunk_size])
+    # 子序列中的查询到达请求随意变化
+    for ChildList in SrewQuery_data:
+        random.shuffle(ChildList)
+
+    CompleteScrewData = [item for sublist in SrewQuery_data for item in sublist]
+
     # 使用argsort对第一列进行排序，得到排序后的索引数组
     #list_to_csv(r".\GeneratedTBMQueryMode\Sorted_Pinzhuang_Query_Alldata.csv",sorted_Query_data)
     print("加载查询样式集已经完毕，准备查询...start select.")
 
     LoopQueryCount = 0#记录
     terminateEndCondition = len(Query_data)#在这里 控制修改提交的查询次数
-    #terminateEndCondition = 300#在这里 控制修改提交的查询次数
+    #terminateEndCondition = 10#在这里 控制修改提交的查询次数
     OverAll_select_time = 0#全局总览的查询时间，记录下全部数据的
     QurySelectTimeTrace = [] # 记录每一个查询的耗时
     AllPoints = 10#用来将留查询产生的总点数
-    for oneQuery in Query_data: #获取到一行的样本集，
+    for oneQuery in CompleteScrewData: #获取到一行的样本集，
         if LoopQueryCount == terminateEndCondition:
             print("循环查询被数量条件终止，设定的数量条件为: " + str(terminateEndCondition))
             break
@@ -194,7 +217,7 @@ def runDataset_Query_column2_WithMoreRings(dataset_path):
         AllPoints = AllPoints + OverAll_PointNums
         onetrace = [oneQurySelectTimeCost,OverAll_PointNums,row_count2]
         QurySelectTimeTrace.append(onetrace)#每一次查询都把查询的结果记录下来
-        time.sleep(0.02)# 在这里控制修改每一次查询提交的时间间隔
+        time.sleep(0.01)# 在这里控制修改每一次查询提交的时间间隔
 
     # for queryCostOneQuery in QurySelectTimeTrace:
     #     print(str(queryCostOneQuery))
@@ -209,10 +232,9 @@ if __name__ == "__main__":
     QurySelectTimeTraceH = runDataset_Query_column2_WithMoreRings(dataset_path)
     #QurySelectTimeTraceH = [1, 2, 3, 4, 5]
     #list_to_csv('outputX_orignalIotdb.csv', QurySelectTimeTraceH) RoundOldTime
-    # list_to_csv('DatasetQueryTrace408_New1.csv',
-    #             QurySelectTimeTraceH,"IOTDBsIZE", "5MB", "DTDG")
-    list_to_csv('DatasetQueryTrace408_10Rings_NewRA2.csv',
-                QurySelectTimeTraceH,"Pres", "2MB", "DTDG")
+    list_to_csv('Trace408_RandomQuery005_10Rings1.csv',
+                QurySelectTimeTraceH,"RoundOldTime", "2MB", "DTDG")
+
     '''
     None是不执行任何合并，保持全部的小文件
     Pres 是自己编写的方法

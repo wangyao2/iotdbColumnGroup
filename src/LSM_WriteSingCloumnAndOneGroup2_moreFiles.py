@@ -201,10 +201,13 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                     bacthnum = bacthnum + batch_size
                     time.sleep(0.1)
                     #整10倍的时候，才写入调用刷写函数，暂时用于人工数据集的写入
-                    #人工集1的行数设定：25是5MB文件，其他的分别取3,10,15,20
+                    #人工集1的行数设定：
+                    # 25是5MB文件，其他的分别取3,10,15,20
+                    # 15是3MB文件
                     # 10 批次，对应1.9MB
                     # 5批次，对应990kb
-                    if bacthnum % (batch_size * 5) == 0:
+                    # 3对应600kb
+                    if bacthnum % (batch_size * 10) == 0:
                         print("Flush One the batch is" + str(bacthnum))
                         session.execute_non_query_statement("flush")
                 session.execute_non_query_statement(
