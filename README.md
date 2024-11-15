@@ -1,22 +1,18 @@
-# column-groups-storage
+# Pre-Select files for compaction
 
-This is the repository for column groups storage in IoTDB. 
+This is the repository for PreS Client. 
 
 The evaluation code is based on IoTDB Python API.
 
 User Guide for setting up the python environment for IoTDB Python API could be found here: https://iotdb.apache.org/UserGuide/V0.13.x/API/Programming-Python-Native-API.html
 
-## Dataset
 ### Instruction
 
 The data are all masked for research use.
 
-**File Structure**
+The repository contains some code related to another research project.
+All code files pertaining to the PreS client have the prefix "LSM".
 
-+ `src/dataset`
-  + `src/dataset/Climate`
-  + `src/dataset/TBM3`
-  + `src/dataset/TBMM2`
-  + `src/dataset/TBMM1`
-  + `src/dataset/Vehicle2`
-  
+Files with the prefix "LSM-Write" are used to write sample data into the database. 
+Files with the prefix "LSM-Load" are used to load query patterns.
+Files with the prefix "LSM-Query" are used to replay query loads.
