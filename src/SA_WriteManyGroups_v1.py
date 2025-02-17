@@ -12,9 +12,9 @@ import operator
 
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
-
+#说明，在SA论文研究中使用Autoaligned研究中的数据写入方法来写入数据
 def generateColumnMap():
-    group_file = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\grouping_results_exp.csv"
+    group_file = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\SA_grouping_pattern.csv"#保存一个文件中序列的分组存储方式
     with open(group_file, "r") as f:
         lines = f.readlines()
     group_num = 0
@@ -176,7 +176,7 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
         if len(values_[0]) < 1:
             continue
 
-        # create single time series and insertInto Singles
+        # 处理单条写入的时间序列，略，create single time series and insertInto Singles
         if len(single_columns) > 0:  # 如果存在单独成组的那些列
             print("正在处理单列数据存储")
             ts_path_list_of_others = [storage_group + ".d1." + attr for attr in single_columns]
@@ -208,9 +208,6 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
                 # 插入一列数据
                 session.insert_records(notEmpty_device_ids,notEmpty_Single_timestamps_,notEmpty_Single_measurements_list_,notEmpty_Single_data_type_list_,notEmpty_Single_values_slice)
                 #np_values_ = np.array(values_)
-
-        # 拿到其中的一列，判断是哪一列
-        # ======前面处理单独一列的那些数据
 
         # create aligned time series
         for i in range(len(group_list)):
@@ -276,34 +273,40 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
                     notEmpty_data_type_list_.append(data_type_list_[ind])
                     notEmpty_values_slice.append(values_slice[ind])
 
-            print("完成的组数：" + str(e))
+            #=====================处理SA放大的实验数据==========================
             print("完成了几行转换" + str(NoOfLine))
-            print("开始按照分组规则划分")
-            #可能还得再加一个行过滤，避免全0的行？
-            session.insert_aligned_records(
-                notEmpty_device_ids, notEmpty_timestamps_, notEmpty_measurements_list_, notEmpty_data_type_list_, notEmpty_values_slice
-            )
+            #分批次乱序写入数据，再来模拟一个完全随机的写入
+            # session.insert_aligned_records(
+            #     notEmpty_device_ids, notEmpty_timestamps_, notEmpty_measurements_list_, notEmpty_data_type_list_, notEmpty_values_slice
+            # )
+            #切片模拟写入
+            # 计算每次切片的长度（10%）
+            slice_size = int(len(notEmpty_device_ids) * 0.1)
+
+            for i in range(10):
+                # 前面notEmpty开头的队列
+                inxStart = len(notEmpty_device_ids) - (i + 1) * slice_size
+                inxEnd = len(notEmpty_device_ids) - i * slice_size
+
+                Slice_device_ids = notEmpty_device_ids[inxStart:inxEnd]
+                Slice_timestamps = notEmpty_timestamps_[inxStart:inxEnd]
+                Slice_measurements_list = notEmpty_measurements_list_[inxStart:inxEnd]
+                Slice_data_type_list = notEmpty_data_type_list_[inxStart:inxEnd]
+                Slice_values = notEmpty_values_slice[inxStart:inxEnd]
+                session.insert_aligned_records(#写入切片数据
+                    Slice_device_ids, Slice_timestamps, Slice_measurements_list, Slice_data_type_list, Slice_values
+                )
+                time.sleep(1)
+                session.execute_non_query_statement("flush")
+                print("写入切片" + str(i) + "完成..");
+
     print("完成插入，即将开始刷写")
     time.sleep(1)
     session.execute_non_query_statement("flush")
-    time.sleep(5)
+    time.sleep(1)
     session.execute_non_query_statement("merge")
-    time.sleep(3)
-    print("刷写完成，启动查询start select")
-    select_repeat_time = 3
-    paths = findPaths(session)
-    start_select_time = time.time()
-    for i in range(select_repeat_time):
-        for path in paths:
-            print("执行查询测试")
-            session.execute_query_statement("SELECT * FROM {}".format(path))
-    end_select_time = time.time()
-    select_time = (end_select_time - start_select_time) / select_repeat_time
-    session.close()
-    #计算存储空间开销
-    space_cost = folderSize(database_file_path)
     print("over")
-    return select_time, space_cost
+    return 0, 0
 
 
 if __name__ == "__main__":
@@ -393,7 +396,7 @@ if __name__ == "__main__":
     }
 
     # datasets = ["TBM2_120000","opt2","Climate", "Vehicle2", "TBMM1", "TBMM2","TBM2","TBM3"]
-    datasets = ["Climate"]
+    datasets = ["Vehicle2"]
     print("只做分组后的写入")
     print(datasets)
     for dataset in datasets:
@@ -412,14 +415,6 @@ if __name__ == "__main__":
                         if v_ == sample_method:
                             select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path, "v_sample", v_),
                                                                          param["time_func"])
-                            writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
                             print(dataset, v_, storage_method, select_time, space_cost / 1000)
                             time.sleep(5)
                             space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
-                            print(space_cost)
-                            time.sleep(2)
-                            space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
-                            print(space_cost)
-                            time.sleep(2)
-                            space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
-                            print(space_cost)

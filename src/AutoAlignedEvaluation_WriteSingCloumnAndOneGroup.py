@@ -190,7 +190,7 @@ def runDataset_column(dataset, dataset_path, time_func):
     measurements_lst_ = list(global_schema)
     data_type_lst_ = global_data_type
     encoding_lst_ = [TSEncoding.PLAIN for _ in range(len(data_type_lst_))]
-    compressor_lst_ = [Compressor.SNAPPY for _ in range(len(data_type_lst_))]
+    compressor_lst_ = [Compressor.UNCOMPRESSED for _ in range(len(data_type_lst_))]
     ts_path_lst_ = []
     for mesurement in measurements_lst_:
         ts_path_lst_.append("root.sg_al_01.d1." + mesurement)
@@ -352,7 +352,7 @@ if __name__ == "__main__":
 
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3"]
-    datasets = ["TBM2_120000"]
+    datasets = ["Climate"]
     print("debug")
     print(datasets)
     try:
@@ -375,7 +375,7 @@ if __name__ == "__main__":
                 if sample_method == "h_sample2":
                     continue
 
-                if storage_method == "singcolumn":
+                if storage_method == "singcolumn":#增加名称，对应了不同压缩模式下的数据记录
                     port_ = "6667"#autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
                     # vertical
                     for v_ in v_sample_methods:
