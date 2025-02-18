@@ -1,14 +1,9 @@
 import math
-import time
-
-import numpy as np
+import random
 
 from iotdb.Session import Session
 from iotdb.utils.IoTDBConstants import TSDataType, TSEncoding, Compressor
-from iotdb.utils.Tablet import Tablet
-from numpy import printoptions
 from DatasetPreperation import *
-import operator
 
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
@@ -57,21 +52,6 @@ def folderSize(folder_path):
 
     return size
 
-def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
-    #res_file_dir = "F:/Workspcae/IdeaWorkSpace/IotDBMaster2/iotdbColumnExpr/src/results/result-autoaligned.csv"
-    res_file_dir = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\esult-autoaligned.csv"
-    if not os.path.exists(res_file_dir):
-        res_df = pd.DataFrame(columns=["dataset", "sample_method", "storage_method", "select_time", "space_cost", "flush_time"])
-    else:
-        res_df = pd.read_csv(res_file_dir)
-
-    if storage_method == "autoaligned":
-        flush_time = 3
-        #flush_time = compute_flush_time()
-    res_df.loc[res_df.shape[0]] = [dataset, sample_method, storage_method, select_time, space_cost, flush_time]
-    res_df.to_csv(res_file_dir, index=False)
-
-
 def findPaths(session):
     res = session.execute_query_statement("show timeseries")
     paths = set()
@@ -79,6 +59,22 @@ def findPaths(session):
         path = "root.sg_al_01." + ts.split(".")[2]
         paths.add(path)
     return list(paths)
+
+
+def split_random_indices(currentList, percente = 0.3):
+    # 获取当前列表的长度
+    length = len(currentList)
+    # 生成所有可能的索引
+    all_indices = list(range(length))
+    # 随机打乱索引
+    random.shuffle(all_indices)
+    # 计算需要随机选择的索引数量（30%）
+    split_point = max(1, int(length * percente))
+    # 随机选择30%的索引
+    random_indices = all_indices[:split_point]
+    # 剩余的索引
+    remaining_indices = all_indices[split_point:]
+    return random_indices, remaining_indices
 
 def runDataset_autoaligned(dataset, dataset_path, time_func):
     #按照分组结果，计算数据在分组条件下的空间消耗
@@ -282,23 +278,109 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
             #切片模拟写入
             # 计算每次切片的长度（10%）
             slice_size = int(len(notEmpty_device_ids) * 0.1)
-
-            for i in range(10):
-                # 前面notEmpty开头的队列
-                inxStart = len(notEmpty_device_ids) - (i + 1) * slice_size
-                inxEnd = len(notEmpty_device_ids) - i * slice_size
-
+            inxStart = 0
+            inxEnd = 10
+            for i in range(4):
+                # 前面notEmpty开头的队列是包含了全部的数据，现在使用inxStart和inxEnd从中选择数据片段开展试验
+                # inxStart = len(notEmpty_device_ids) - (i + 1) * slice_size
+                # inxEnd = len(notEmpty_device_ids) - i * slice_size
                 Slice_device_ids = notEmpty_device_ids[inxStart:inxEnd]
                 Slice_timestamps = notEmpty_timestamps_[inxStart:inxEnd]
                 Slice_measurements_list = notEmpty_measurements_list_[inxStart:inxEnd]
                 Slice_data_type_list = notEmpty_data_type_list_[inxStart:inxEnd]
                 Slice_values = notEmpty_values_slice[inxStart:inxEnd]
-                session.insert_aligned_records(#写入切片数据
-                    Slice_device_ids, Slice_timestamps, Slice_measurements_list, Slice_data_type_list, Slice_values
+
+                selected_slice_Slice_measurements_list = [[] for _ in range(10)]
+                selected_slice_Data_type_list = [[] for _ in range(10)]
+                selected_Slice_values = [[] for _ in range(10)]
+
+                selected2_slice_Slice_measurements_list = [[] for _ in range(10)]
+                selected2_slice_Data_type_list = [[] for _ in range(10)]
+                selected2_Slice_values = [[] for _ in range(10)]
+                # 随机选择要提取的元素数量（例如选择30%的元素）
+                #randomselect_count = int(len(Slice_device_ids) * 0.3)  # 选择30%的元素，randomselect_count一次 随机选取的数量
+                # 随机选择元素
+                #selected_indices = random.sample(range(len(Slice_device_ids)), randomselect_count)  # 注意：随机索引的生成，要按照序这一行的序列名来随机，随机选择索引
+                for rowNum in range(len(Slice_device_ids)):#每一行数据单独处理，rowNum是行号，代表处理了第几行了
+                    Row_measurements = Slice_measurements_list[rowNum]
+                    Row_data_type = Slice_data_type_list[rowNum]
+                    Row_values = Slice_values[rowNum]
+
+                    #生成随机索引逻辑
+                    selected_indices = [0, 1, 2]  # 编写一个索引生成函数挂在外面去，这里需要针对每一行都处理一下
+                    all_indices = set(range(len(Row_measurements)))
+                    remaining_indices = list(all_indices - set(selected_indices))
+                    #selected_indices,remaining_indices = split_random_indices(Row_measurements,0.3)#调用函数生成随机索引
+
+                    #处理选中的元素
+                    selected_measurements_elements = [Row_measurements[i] for i in selected_indices]
+                    selected_data_type_elements = [Row_data_type[i] for i in selected_indices]
+                    selected_values_elements = [Row_values[i] for i in selected_indices]
+
+                    selected_slice_Slice_measurements_list[rowNum] = selected_measurements_elements
+                    selected_slice_Data_type_list[rowNum] = selected_data_type_elements
+                    selected_Slice_values[rowNum] = selected_values_elements
+
+
+                    #处理其他的元素
+                    remain_slice_Slice_measurements_list = [Row_measurements[i] for i in remaining_indices]
+                    remain_data_type_elements = [Row_data_type[i] for i in remaining_indices]
+                    remain_values_elements = [Row_values[i] for i in remaining_indices]
+
+                    selected2_slice_Slice_measurements_list[rowNum] = remain_slice_Slice_measurements_list
+                    selected2_slice_Data_type_list[rowNum] = remain_data_type_elements
+                    selected2_Slice_values[rowNum] = remain_values_elements
+
+
+                session.insert_aligned_records(  # 写入切片数据
+                    Slice_device_ids, Slice_timestamps, selected_slice_Slice_measurements_list,
+                    selected_slice_Data_type_list, selected_Slice_values
                 )
                 time.sleep(1)
                 session.execute_non_query_statement("flush")
-                print("写入切片" + str(i) + "完成..");
+
+                session.insert_aligned_records(  # 写入切片数据
+                    Slice_device_ids, Slice_timestamps, selected2_slice_Slice_measurements_list,
+                    selected2_slice_Data_type_list, selected2_Slice_values
+                )
+                time.sleep(1)
+                session.execute_non_query_statement("flush")
+                # 获取所有列的索引
+                #all_indices = set(range(len(Slice_measurements_list[0])))  # todo，×明天要解决每一行都有不同列的问题，假设所有行都有相同的列数
+                # 移除selectedindices中的索引，得到剩余的索引
+                remaining_indices = list(all_indices - set(selected_indices))
+
+                #random_slice_Slice_device_ids = [Slice_device_ids[i] for i in selected_indices]  # 组成list1
+                #random_slice_Slice_timestamps = [Slice_timestamps[i] for i in selected_indices]  # 组成list1
+                # random_slice_Slice_measurements_list = [[row[i] for i in selected_indices] for row in Slice_measurements_list]
+                # random2_slice_Slice_measurements_list = [[row[i] for i in remaining_indices] for row in Slice_measurements_list]#todo，这里必须一行一行的处理
+                #
+                # random_slice_Slice_data_type_list = [[row[i] for i in selected_indices] for row in Slice_data_type_list]  # 组成list1
+                # random2_slice_Slice_data_type_list = [[row[i] for i in remaining_indices] for row in Slice_data_type_list]  # 组成list1
+                #
+                # random_slice_Slice_values = [[row[i] for i in selected_indices] for row in Slice_values] # 组成list1
+                # random2_slice_Slice_values = [[row[i] for i in remaining_indices] for row in Slice_values] # 组成list1
+                #
+                # session.insert_aligned_records(#写入切片数据
+                #     Slice_device_ids, Slice_timestamps, random_slice_Slice_measurements_list, random_slice_Slice_data_type_list, random_slice_Slice_values
+                # )
+
+                #
+                # # 其他未被选中的元素组成list2
+                # all_indices = set(range(len(Slice_device_ids)))
+                # selected_indices2 = all_indices - set(selected_indices)
+                # #selected_indices2 = [item for i, item in enumerate(Slice_device_ids) if i not in selected_indices]
+                #
+                # random2_slice_Slice_data_type_list = [Slice_data_type_list[i] for i in selected_indices2]  # 组成list1
+                # random2_slice_Slice_values = [Slice_values[i] for i in selected_indices2]  # 组成list1
+                # session.insert_aligned_records(#写入切片数据
+                #     Slice_device_ids, Slice_timestamps, random2_slice_Slice_measurements_list, random2_slice_Slice_data_type_list, random2_slice_Slice_values
+                # )
+                time.sleep(1)
+                session.execute_non_query_statement("flush")
+                print("写入切片" + str(i) + "完成..")
+                inxStart = inxStart + 10
+                inxEnd = inxEnd + 10
 
     print("完成插入，即将开始刷写")
     time.sleep(1)
@@ -416,5 +498,4 @@ if __name__ == "__main__":
                             select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path, "v_sample", v_),
                                                                          param["time_func"])
                             print(dataset, v_, storage_method, select_time, space_cost / 1000)
-                            time.sleep(5)
-                            space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
+                            time.sleep(1)
