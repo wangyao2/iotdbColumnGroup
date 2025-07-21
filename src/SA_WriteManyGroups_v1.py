@@ -1,6 +1,8 @@
 import math
 import random
-
+import matplotlib.pyplot as plt
+import time
+import os
 from iotdb.Session import Session
 from iotdb.utils.IoTDBConstants import TSDataType, TSEncoding, Compressor
 from DatasetPreperation import *
@@ -77,6 +79,7 @@ def split_random_indices(currentList, percente = 0.3):
     return random_indices, remaining_indices
 
 def runDataset_autoaligned(dataset, dataset_path, time_func):
+    plt.switch_backend('TkAgg')  # 适用于大多数桌面环境
     #按照分组结果，计算数据在分组条件下的空间消耗
     ##批注，============增加元数据的字典排序，还有单列数据的插入功能
     column_map, group_list, single_columns = generateColumnMap()
@@ -269,7 +272,7 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
                     notEmpty_data_type_list_.append(data_type_list_[ind])
                     notEmpty_values_slice.append(values_slice[ind])
 
-            #=====================处理SA放大的实验数据==========================
+            #=====================处理SA放大的实验数据，上面的数据集全都是加载原始数据的内容==========================
             print("完成了几行转换" + str(NoOfLine))
             #分批次乱序写入数据，再来模拟一个完全随机的写入
             # session.insert_aligned_records(
@@ -280,7 +283,7 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
             slice_size = int(len(notEmpty_device_ids) * 0.1)
             inxStart = 0
             inxEnd = 10
-            for i in range(4):
+            for i in range(5):
                 # 前面notEmpty开头的队列是包含了全部的数据，现在使用inxStart和inxEnd从中选择数据片段开展试验
                 # inxStart = len(notEmpty_device_ids) - (i + 1) * slice_size
                 # inxEnd = len(notEmpty_device_ids) - i * slice_size
@@ -331,7 +334,13 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
                     selected2_slice_Data_type_list[rowNum] = remain_data_type_elements
                     selected2_Slice_values[rowNum] = remain_values_elements
 
-
+                #两次写入，确保数据落入到乱序空间内
+                session.insert_aligned_records(  # 写入切片数据
+                    Slice_device_ids, Slice_timestamps, selected_slice_Slice_measurements_list,
+                    selected_slice_Data_type_list, selected_Slice_values
+                )
+                time.sleep(1)
+                session.execute_non_query_statement("flush")
                 session.insert_aligned_records(  # 写入切片数据
                     Slice_device_ids, Slice_timestamps, selected_slice_Slice_measurements_list,
                     selected_slice_Data_type_list, selected_Slice_values
@@ -345,39 +354,14 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
                 )
                 time.sleep(1)
                 session.execute_non_query_statement("flush")
-                # 获取所有列的索引
-                #all_indices = set(range(len(Slice_measurements_list[0])))  # todo，×明天要解决每一行都有不同列的问题，假设所有行都有相同的列数
-                # 移除selectedindices中的索引，得到剩余的索引
-                remaining_indices = list(all_indices - set(selected_indices))
 
-                #random_slice_Slice_device_ids = [Slice_device_ids[i] for i in selected_indices]  # 组成list1
-                #random_slice_Slice_timestamps = [Slice_timestamps[i] for i in selected_indices]  # 组成list1
-                # random_slice_Slice_measurements_list = [[row[i] for i in selected_indices] for row in Slice_measurements_list]
-                # random2_slice_Slice_measurements_list = [[row[i] for i in remaining_indices] for row in Slice_measurements_list]#todo，这里必须一行一行的处理
-                #
-                # random_slice_Slice_data_type_list = [[row[i] for i in selected_indices] for row in Slice_data_type_list]  # 组成list1
-                # random2_slice_Slice_data_type_list = [[row[i] for i in remaining_indices] for row in Slice_data_type_list]  # 组成list1
-                #
-                # random_slice_Slice_values = [[row[i] for i in selected_indices] for row in Slice_values] # 组成list1
-                # random2_slice_Slice_values = [[row[i] for i in remaining_indices] for row in Slice_values] # 组成list1
-                #
-                # session.insert_aligned_records(#写入切片数据
-                #     Slice_device_ids, Slice_timestamps, random_slice_Slice_measurements_list, random_slice_Slice_data_type_list, random_slice_Slice_values
-                # )
-
-                #
-                # # 其他未被选中的元素组成list2
-                # all_indices = set(range(len(Slice_device_ids)))
-                # selected_indices2 = all_indices - set(selected_indices)
-                # #selected_indices2 = [item for i, item in enumerate(Slice_device_ids) if i not in selected_indices]
-                #
-                # random2_slice_Slice_data_type_list = [Slice_data_type_list[i] for i in selected_indices2]  # 组成list1
-                # random2_slice_Slice_values = [Slice_values[i] for i in selected_indices2]  # 组成list1
-                # session.insert_aligned_records(#写入切片数据
-                #     Slice_device_ids, Slice_timestamps, random2_slice_Slice_measurements_list, random2_slice_Slice_data_type_list, random2_slice_Slice_values
-                # )
+                session.insert_aligned_records(  # 写入切片数据
+                    Slice_device_ids, Slice_timestamps, selected2_slice_Slice_measurements_list,
+                    selected2_slice_Data_type_list, selected2_Slice_values
+                )
                 time.sleep(1)
                 session.execute_non_query_statement("flush")
+
                 print("写入切片" + str(i) + "完成..")
                 inxStart = inxStart + 10
                 inxEnd = inxEnd + 10
@@ -389,6 +373,27 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
     session.execute_non_query_statement("merge")
     print("over")
     return 0, 0
+
+def drawpicture(Slice_timestamps):
+    plt.figure(figsize=(10, 6))
+    plt.plot(
+        range(1, len(Slice_timestamps) + 1),  # x轴数据：1-based索引
+        Slice_timestamps,
+        marker='o',  # 数据点标记
+        linestyle='-',  # 连接线样式
+        color='#1f77b4'  # 曲线颜色
+    )
+    # 添加标题和标签
+    plt.title('analyze')
+    plt.xlabel('num')
+    plt.ylabel('timestamp')
+    # 显示网格线
+    plt.grid(True, linestyle='--', alpha=0.6)
+    # 自动调整布局防止标签被截断
+    plt.tight_layout()
+    # 显示图像（不保存文件）
+    # 显示图像并保持窗口打开
+    plt.show()
 
 
 if __name__ == "__main__":

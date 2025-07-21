@@ -1,24 +1,22 @@
 import math
 import time
+import numpy as np
+from iotdb.Session import Session
+from iotdb.utils.IoTDBConstants import TSDataType, TSEncoding, Compressor
+from DatasetPreperation import *
+
 '''
+2025年新版测试文件
 函数功能，读取包含列组方案的文件，按照列组方案，把数据写入数据库
 于向IDEA服务端直接写入测试数据
 第二步，先使用这个py文件向6667中中写入列组数据，然后记录实验结果
 '''
-import numpy as np
-
-from iotdb.Session import Session
-from iotdb.utils.IoTDBConstants import TSDataType, TSEncoding, Compressor
-from iotdb.utils.Tablet import Tablet
-from numpy import printoptions
-from DatasetPreperation import *
-import operator
 
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 
 def generateColumnMap():
-    group_file = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\grouping_results_exp.csv"
+    group_file = "/src/grouping_results_exp.csv"
     with open(group_file, "r") as f:
         lines = f.readlines()
     group_num = 0
@@ -63,7 +61,7 @@ def folderSize(folder_path):
 
 def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
     #res_file_dir = "F:/Workspcae/IdeaWorkSpace/IotDBMaster2/iotdbColumnExpr/src/results/result-autoaligned.csv"
-    res_file_dir = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\esult-autoaligned.csv"
+    res_file_dir = "/src/esult-autoaligned.csv"
     if not os.path.exists(res_file_dir):
         res_df = pd.DataFrame(columns=["dataset", "sample_method", "storage_method", "select_time", "space_cost", "flush_time"])
     else:
@@ -317,7 +315,6 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
 
 if __name__ == "__main__":
 
-    dataset_root = "dataset/"
     parameters = {
         "WindTurbine": {
             "file_dir": "",
@@ -401,9 +398,10 @@ if __name__ == "__main__":
         },
     }
 
+    dataset_root = "dataset"
     # datasets = ["TBM2_120000","opt2","Climate", "Vehicle2", "TBMM1", "TBMM2","TBM2","TBM3"]
     datasets = ["Climate"]
-    print("只做分组后的写入")
+    print("按照分组结果，写入数据库执行结果收集")
     print(datasets)
     for dataset in datasets:
         param = parameters[dataset]

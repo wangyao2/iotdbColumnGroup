@@ -1,5 +1,9 @@
 import numpy as np
-
+'''
+函数功能，以单个列组的方式把数据集写入到数据库中
+用于向IDEA服务端直接写入测试数据
+第一步，先使用这个py文件向IDEA中写入列组数据，然后 IDEA会输出列组结果
+'''
 from iotdb.Session import Session
 from iotdb.utils.IoTDBConstants import TSDataType, TSEncoding, Compressor
 from iotdb.utils.Tablet import Tablet
@@ -200,7 +204,6 @@ def DealWithTheCSVToDeleteCommon():
 
 if __name__ == "__main__":
 
-    dataset_root = "dataset/"
     parameters = {
         "WindTurbine": {
             "file_dir": "",
@@ -283,12 +286,13 @@ if __name__ == "__main__":
     #只包含了数据写入程序
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBMM2","TBM2_120000"]
-    datasets = ["TBMM1"]
+    dataset_root = "dataset2"
+    datasets = ["Climate"]
     print("只导入数据，生成分组结果")
     print(datasets)
     for dataset in datasets:
         param = parameters[dataset]
-        dataset_path = os.path.join("dataset", dataset, param["file_dir"])
+        dataset_path = os.path.join(dataset_root, dataset, param["file_dir"])
         v_sample_methods = os.listdir(os.path.join(dataset_path, "v_sample"))
 #        h_sample_methods = os.listdir(os.path.join(dataset_path, "h_sample"))
         v_sample_methods = [p for p in v_sample_methods if p.startswith("v_sample")]
