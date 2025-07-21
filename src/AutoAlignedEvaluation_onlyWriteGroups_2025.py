@@ -16,7 +16,7 @@ database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 
 def generateColumnMap():
-    group_file = "/src/grouping_results_exp.csv"
+    group_file = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\grouping_results_exp.csv"
     with open(group_file, "r") as f:
         lines = f.readlines()
     group_num = 0
@@ -60,7 +60,6 @@ def folderSize(folder_path):
     return size
 
 def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
-    #res_file_dir = "F:/Workspcae/IdeaWorkSpace/IotDBMaster2/iotdbColumnExpr/src/results/result-autoaligned.csv"
     res_file_dir = "/src/esult-autoaligned.csv"
     if not os.path.exists(res_file_dir):
         res_df = pd.DataFrame(columns=["dataset", "sample_method", "storage_method", "select_time", "space_cost", "flush_time"])
@@ -72,7 +71,6 @@ def writeToResultFile(dataset, sample_method, storage_method, select_time, space
         #flush_time = compute_flush_time()
     res_df.loc[res_df.shape[0]] = [dataset, sample_method, storage_method, select_time, space_cost, flush_time]
     res_df.to_csv(res_file_dir, index=False)
-
 
 def findPaths(session):
     res = session.execute_query_statement("show timeseries")
@@ -89,11 +87,9 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
     print(column_map)
     print(group_list)
     print(single_columns)
-    # group_list增加一点排序的功能
-    #group_list = [sorted(row) for row in group_list]
 
     file_list = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]
-    file_number = len(file_list)
+
     storage_group = "root.sg_al_01"
     index = 1
     ip = "127.0.0.1"
@@ -121,181 +117,169 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
     data_all = list()
     timestamp_all = list()
 
-    for file_name in file_list:
-        if not file_name.endswith(".csv"):
+    # 先拼接文件
+    dfs = []  # 存储每个文件的DataFrame
+    for file_path in file_list:
+        if not file_path.endswith(".csv"):
             continue
-        df = pd.read_csv(os.path.join(dataset_path, file_name))
-        if len(df.columns) < 2:
-            index += 1
-            continue
-        local_schema = np.array(df.columns)[1:]
-        for i in range(len(local_schema)):
-            local_schema[i] = local_schema[i] + str(index)
-        global_schema = np.append(global_schema, local_schema, axis=0)
-        local_schemas.append(local_schema)
-        local_data_type = []
-        for attr in local_schema:
-            if attr == "信息接收时间" + str(index) or attr == "wfid" + str(index) or attr == "wtid" + str(index):
-                local_data_type.append(TSDataType.TEXT)
-            else:
-                local_data_type.append(TSDataType.DOUBLE)
-        local_data_types.append(local_data_type)
-        global_data_type = global_data_type + local_data_type
-        device_data = np.array(df)
-        for i in range(len(device_data[:, 0])):
-            if time_func == 0:
-                device_data[i, 0] = string_to_timestamp_0(device_data[i, 0])
-            elif time_func == 1:
-                device_data[i, 0] = string_to_timestamp_1(device_data[i, 0])
-            elif time_func == 5:
-                device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
-            elif time_func == 2:
-                device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
-            elif time_func == 6:
-                device_data[i, 0] = string_to_timestamp_6(device_data[i, 0])
-            else:
-                device_data[i, 0] = int(device_data[i, 0])
+        file_path = os.path.join(dataset_path, file_path)
+        c_df = pd.read_csv(file_path, engine='python')
+        dfs.append(c_df)
+    df = pd.concat(dfs, ignore_index=True)# 使用concat合并所有DataFrame
 
-        if dataset == "WindTurbine" or dataset == "opt":
-            if local_schema[0] == "wfid" + str(index) or local_schema[1] == "wtid" + str(index):
-                for i in range(len(device_data[:, 1])):
-                    device_data[i, 1] = str(device_data[i, 1])
-            if local_schema[1] == "wtid" + str(index):
-                for i in range(len(device_data[:, 1])):
-                    device_data[i, 2] = str(device_data[i, 2])
-        data_all.append(device_data[:, 1:])
-        timestamp_all.append(device_data[:, 0])
-        index += 1
+    local_schema = np.array(df.columns)[1:]
+    for i in range(len(local_schema)):
+        local_schema[i] = local_schema[i] + str(index)
+    local_schemas.append(local_schema)
+    local_data_type = []
+    local_data_types.append(local_data_type)
 
+    device_data = np.array(df)
+    for i in range(len(device_data[:, 0])):
+        if time_func == 0:
+            device_data[i, 0] = string_to_timestamp_0(device_data[i, 0])
+        elif time_func == 1:
+            device_data[i, 0] = string_to_timestamp_1(device_data[i, 0])
+        elif time_func == 5:
+            device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
+        elif time_func == 2:
+            device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
+        elif time_func == 6:
+            device_data[i, 0] = string_to_timestamp_6(device_data[i, 0])
+        else:
+            device_data[i, 0] = int(device_data[i, 0])
 
-    for i in range(len(data_all)):#data_all就一行，这个for循环一共就只有一次
-        print("file number: {}/{}".format(i, len(data_all)))
-        local_schema = local_schemas[i].tolist()
-        timestamps_ = (timestamp_all[i].tolist())
-        for j in range(len(timestamps_)):
-            timestamps_[j] = int(timestamps_[j])
-        values_ = (data_all[i].tolist())
-        if len(values_[0]) < 1:
-            continue
+    data_all.append(device_data[:, 1:])
+    timestamp_all.append(device_data[:, 0])
 
-        # create single time series and insertInto Singles
-        if len(single_columns) > 0:  # 如果存在单独成组的那些列
-            print("正在处理单列数据存储")
-            ts_path_list_of_others = [storage_group + ".d1." + attr for attr in single_columns]
-            data_types_of_others = [TSDataType.DOUBLE for _ in range(len(single_columns))]
-            encoding_types_of_others = [TSEncoding.GORILLA for _ in range(len(single_columns))]
-            compressor_types_of_others = [Compressor.UNCOMPRESSED for _ in range(len(single_columns))]
-            if len(single_columns) != 0:
-                session.create_multi_time_series(
-                    ts_path_list_of_others, data_types_of_others, encoding_types_of_others, compressor_types_of_others
-                )
-            time.sleep(1)
-            # 前面是创建时间序列，后面就是向序列里插入数据
-            notEmpty_device_ids = list()
-            notEmpty_Single_timestamps_ = list()
-            notEmpty_Single_measurements_list_ = list()
-            notEmpty_Single_data_type_list_ = list()
-            notEmpty_Single_values_slice = list()
-            for single_column in single_columns:
-                print("正在处理单列： "+single_column)
-                one_single_index = int(single_column[:-1]) - 1#获取当前是哪一列
-                one_Single_values_Slices = [row[one_single_index] for row in values_] #这一列的数据切片全都拿着
-                for ind in range(len(one_Single_values_Slices)): #把数据切片中为0的数全都过滤掉
-                    if not math.isnan(one_Single_values_Slices[ind]):
-                        notEmpty_device_ids.append(storage_group + ".d1")#1维
-                        notEmpty_Single_values_slice.append([one_Single_values_Slices[ind]])
-                        notEmpty_Single_timestamps_.append(timestamps_[ind])#1维
-                        notEmpty_Single_measurements_list_.append([single_column])
-                        notEmpty_Single_data_type_list_.append([TSDataType.DOUBLE])
-                # 插入一列数据
-                session.insert_records(notEmpty_device_ids,notEmpty_Single_timestamps_,notEmpty_Single_measurements_list_,notEmpty_Single_data_type_list_,notEmpty_Single_values_slice)
-                notEmpty_device_ids.clear()
-                notEmpty_Single_values_slice.clear()
-                notEmpty_Single_timestamps_.clear()
-                notEmpty_Single_measurements_list_.clear()
-                notEmpty_Single_data_type_list_.clear()
-                #np_values_ = np.array(values_)
+    # 生成待写入的时间戳和数值部分
+    timestamps_ = (timestamp_all[0].tolist())
+    for j in range(len(timestamps_)):
+        timestamps_[j] = int(timestamps_[j])
+    values_ = (data_all[0].tolist())
 
-        # 拿到其中的一列，判断是哪一列
-        # ======前面处理单独一列的那些数据
-
-        # create aligned time series
-        for i in range(len(group_list)):
-            data_types_of_group = [TSDataType.DOUBLE for _ in range(len(group_list[i]))]
-            encoding_types_of_group = [TSEncoding.GORILLA for _ in range(len(group_list[i]))]
-            compressor_types_of_group = [Compressor.UNCOMPRESSED for _ in range(len(group_list[i]))]
-            session.create_aligned_time_series(
-                storage_group + ".g{}".format(i), group_list[i], data_types_of_group, encoding_types_of_group,
-                compressor_types_of_group
+    # todo 1 创建分组模式中的单列，create single time series and insertInto Singles
+    if len(single_columns) > 0:  # 如果存在单独成组的那些列
+        print("正在处理单列数据存储")
+        ts_path_list_of_others = [storage_group + ".d1." + attr for attr in single_columns]
+        data_types_of_others = [TSDataType.DOUBLE for _ in range(len(single_columns))]
+        encoding_types_of_others = [TSEncoding.PLAIN for _ in range(len(single_columns))]
+        compressor_types_of_others = [Compressor.SNAPPY for _ in range(len(single_columns))]
+        if len(single_columns) != 0:
+            session.create_multi_time_series(
+                ts_path_list_of_others, data_types_of_others, encoding_types_of_others, compressor_types_of_others
             )
+        time.sleep(1)
+        # 前面是创建时间序列，后面就是向序列里插入数据
+        notEmpty_device_ids = list()
+        notEmpty_Single_timestamps_ = list()
+        notEmpty_Single_measurements_list_ = list()
+        notEmpty_Single_data_type_list_ = list()
+        notEmpty_Single_values_slice = list()
+        for single_column in single_columns:
+            print("正在处理单列： "+single_column)
+            one_single_index = int(single_column[:-1]) - 1#获取当前是哪一列
+            one_Single_values_Slices = [row[one_single_index] for row in values_] #这一列的数据切片全都拿着
+            for ind in range(len(one_Single_values_Slices)): #把数据切片中为0的数全都过滤掉
+                if not math.isnan(one_Single_values_Slices[ind]):
+                    notEmpty_device_ids.append(storage_group + ".d1")#1维
+                    notEmpty_Single_values_slice.append([one_Single_values_Slices[ind]])
+                    notEmpty_Single_timestamps_.append(timestamps_[ind])#1维
+                    notEmpty_Single_measurements_list_.append([single_column])
+                    notEmpty_Single_data_type_list_.append([TSDataType.DOUBLE])
+            # 插入一列数据
+            session.insert_records(notEmpty_device_ids,notEmpty_Single_timestamps_,notEmpty_Single_measurements_list_,notEmpty_Single_data_type_list_,notEmpty_Single_values_slice)
+            notEmpty_device_ids.clear()
+            notEmpty_Single_values_slice.clear()
+            notEmpty_Single_timestamps_.clear()
+            notEmpty_Single_measurements_list_.clear()
+            notEmpty_Single_data_type_list_.clear()
+            #np_values_ = np.array(values_)
 
-        for e in range(len(group_list)):#一个分组一个分组的处理写入
-            # 按照group_list拿到一个一个slice
-            one_group_schema = group_list[e]  # 记录了一个组里有哪些列
-            one_group_list_index = [s[:-1] for s in one_group_schema]  # 只保留索引下来
-            one_group_list_index = [int(x) - 1 for x in one_group_list_index]
-            #拿到第一个分组中的值
-            np_values_ = np.array(values_)
-            values_slice_ = np_values_.take(one_group_list_index, axis=1)
-            values_slice = values_slice_.reshape(values_slice_.shape[0], -1)
-            values_slice = values_slice.tolist()
+    # todo 2 按照列组模式处理文件，create aligned time series
 
-            measurements_list_ = [one_group_schema for _ in range(len(values_slice))]#测点名称
+    for i in range(len(group_list)):
+        data_types_of_group = [TSDataType.DOUBLE for _ in range(len(group_list[i]))]
+        encoding_types_of_group = [TSEncoding.PLAIN for _ in range(len(group_list[i]))]
+        compressor_types_of_group = [Compressor.SNAPPY for _ in range(len(group_list[i]))]
+        session.create_aligned_time_series(
+            storage_group + ".g{}".format(i), group_list[i], data_types_of_group, encoding_types_of_group,
+            compressor_types_of_group
+        )
 
-            data_type = [TSDataType.DOUBLE for _ in range(len(one_group_schema))]#数据类型
-            data_type_list_ = [data_type for _ in range(len(values_slice))]  # 非nan的个数
+    for e in range(len(group_list)):#一个分组一个分组的处理写入
+        # 按照group_list拿到一个一个slice
+        one_group_schema = group_list[e]  # 记录了一个组里有哪些列
+        one_group_list_index = [s[:-1] for s in one_group_schema]  # 只保留索引下来
+        one_group_list_index = [int(x) - 1 for x in one_group_list_index]
+        #拿到第一个分组中的值
+        np_values_ = np.array(values_)
+        values_slice_ = np_values_.take(one_group_list_index, axis=1)
+        values_slice = values_slice_.reshape(values_slice_.shape[0], -1)
+        values_slice = values_slice.tolist()
 
-            device_ids = [storage_group + ".g{}".format(e) for _ in range(len(values_slice))]#设备名称
-            #device_ids = ["root.sg_al_01.d1" for _ in range(len(values_slice))]  # 不用动
+        measurements_list_ = [one_group_schema for _ in range(len(values_slice))]#测点名称
 
-            # 如果我增加这一段空值处理的话，方师兄的样例程序就没法正常输出结果，没法产生那个group.csv文件
-            NoOfLine = 0
-            for oneline in values_slice:
-                # oneline 是一行数据，逐个处理每一行数据，将其空值处理掉
-                isnan = np.isnan(oneline).tolist()  # true和false的数组
-                isANum = [not x for x in isnan]
+        data_type = [TSDataType.DOUBLE for _ in range(len(one_group_schema))]#数据类型
+        data_type_list_ = [data_type for _ in range(len(values_slice))]  # 非nan的个数
 
-                oneMeasurement = np.array(measurements_list_[NoOfLine])
-                afterboolMeasure = oneMeasurement[isANum]
-                afterboolMeasure1 = afterboolMeasure.tolist()
-                measurements_list_[NoOfLine] = afterboolMeasure1
+        device_ids = [storage_group + ".g{}".format(e) for _ in range(len(values_slice))]#设备名称
+        #device_ids = ["root.sg_al_01.d1" for _ in range(len(values_slice))]  # 不用动
+        # 如果我增加这一段空值处理的话，方师兄的样例程序就没法正常输出结果，没法产生那个group.csv文件
+        NoOfLine = 0
+        DeleteList = []  # 把全空的行记录下来，等会要删除掉
+        for oneline in values_slice:
+            # oneline 是一行数据，逐个处理每一行数据，将其空值处理掉
+            isnan = np.isnan(oneline).tolist()  # true和false的数组
+            isANum = [not x for x in isnan]
 
-                oneDataType = np.array(data_type_list_[NoOfLine])
-                afterboolDataTpye = oneDataType[isANum].tolist()
-                data_type_list_[NoOfLine] = afterboolDataTpye
+            oneMeasurement = np.array(measurements_list_[NoOfLine])
+            afterboolMeasure = oneMeasurement[isANum]
+            afterboolMeasure1 = afterboolMeasure.tolist()
+            if len(afterboolMeasure) == 0: #如果这一列全空，要如何处理，手动添加一列上去
+                #创造一个数值写入上去
+                DeleteList.append(NoOfLine)#记录全空值的行
 
-                oneValues = np.array(values_slice[NoOfLine])
-                afterboolonevalues = oneValues[isANum].tolist()
-                values_slice[NoOfLine] = afterboolonevalues
-                NoOfLine = NoOfLine + 1  # 行号自增1
+            measurements_list_[NoOfLine] = afterboolMeasure1
 
-            notEmpty_device_ids = list()
-            notEmpty_timestamps_ = list()
-            notEmpty_measurements_list_ = list()
-            notEmpty_data_type_list_ = list()
-            notEmpty_values_slice = list()
+            oneDataType = np.array(data_type_list_[NoOfLine])
+            afterboolDataTpye = oneDataType[isANum].tolist()
+            data_type_list_[NoOfLine] = afterboolDataTpye
 
-            for ind in range(len(values_slice)):
-                if values_slice[ind]:#子列表是非空的，去除空行
-                    notEmpty_device_ids.append(device_ids[ind])
-                    notEmpty_timestamps_.append(timestamps_[ind])
-                    notEmpty_measurements_list_.append(measurements_list_[ind])
-                    notEmpty_data_type_list_.append(data_type_list_[ind])
-                    notEmpty_values_slice.append(values_slice[ind])
+            oneValues = np.array(values_slice[NoOfLine])
+            afterboolonevalues = oneValues[isANum].tolist()
+            values_slice[NoOfLine] = afterboolonevalues
+            NoOfLine = NoOfLine + 1  # 行号自增1
 
-            print("完成的组数：" + str(e))
-            print("完成了几行转换" + str(NoOfLine))
-            print("开始按照分组规则划分")
-            #可能还得再加一个行过滤，避免全0的行？
-            session.insert_aligned_records(
-                notEmpty_device_ids, notEmpty_timestamps_, notEmpty_measurements_list_, notEmpty_data_type_list_, notEmpty_values_slice
-            )
+        print("完成了几行转换" + str(NoOfLine))
+        print("无效行数为：" + str(len(DeleteList)))
+        notEmpty_device_ids = list()
+        notEmpty_timestamps_ = list()
+        notEmpty_measurements_list_ = list()
+        notEmpty_data_type_list_ = list()
+        notEmpty_values_slice = list()
+        NANWalue = 0 #记录删除掉的空值行
+        for ind in range(len(values_slice)):
+            if values_slice[ind]:#子列表是非空的，去除空行
+                NANWalue = NANWalue + 1
+                notEmpty_device_ids.append(device_ids[ind])
+                notEmpty_timestamps_.append(timestamps_[ind])
+                notEmpty_measurements_list_.append(measurements_list_[ind])
+                notEmpty_data_type_list_.append(data_type_list_[ind])
+                notEmpty_values_slice.append(values_slice[ind])
+        print("有效行数为：" + str(NANWalue))
+        print("完成的组数：" + str(e) + " 开始按照分组规则划分")
+        #可能还得再加一个行过滤，避免全0的行？
+        session.insert_aligned_records(
+            notEmpty_device_ids, notEmpty_timestamps_, notEmpty_measurements_list_, notEmpty_data_type_list_, notEmpty_values_slice
+        )
+
     print("完成插入，即将开始刷写")
     time.sleep(1)
     session.execute_non_query_statement("flush")
-    time.sleep(5)
+    time.sleep(2)
     session.execute_non_query_statement("merge")
-    time.sleep(3)
+    time.sleep(2)
     print("刷写完成，启动查询start select")
     select_repeat_time = 3
     paths = findPaths(session)
@@ -311,7 +295,6 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
     space_cost = folderSize(database_file_path)
     print("over")
     return select_time, space_cost
-
 
 if __name__ == "__main__":
 
@@ -350,7 +333,7 @@ if __name__ == "__main__":
         },
         "Vehicle2": {
             "file_dir": "",
-            "time_func": 5,
+            "time_func": 0,
         },
         "Train": {
             "file_dir": "",
@@ -398,35 +381,27 @@ if __name__ == "__main__":
         },
     }
 
-    dataset_root = "dataset"
+    dataset_root = "dataset2"
     # datasets = ["TBM2_120000","opt2","Climate", "Vehicle2", "TBMM1", "TBMM2","TBM2","TBM3"]
-    datasets = ["Climate"]
+    datasets = ["Vehicle2"]
     print("按照分组结果，写入数据库执行结果收集")
     print(datasets)
     for dataset in datasets:
         param = parameters[dataset]
-        dataset_path = os.path.join("dataset", dataset, param["file_dir"])
-        v_sample_methods = os.listdir(os.path.join(dataset_path, "v_sample"))
-        v_sample_methods = [p for p in v_sample_methods if p.startswith("v_sample")]
-        for sample_method in v_sample_methods:
-            for storage_method in ["AutoAlgined"]:#"AutoAlgined" "Algined"
-                if sample_method == "h_sample2":
-                    continue
-                if storage_method == "AutoAlgined":#单独运行后面的部分，则可以按照groupcsv的结果，将时间序列按照文件中的输出结果分组存储，这里增加QueryTime用的
-                    #port_ = "6667"#生成的新数据再重新导入到普通的数据库当中，普通数据库的是6668端口序列
-                    # vertical
-                    for v_ in v_sample_methods:
-                        if v_ == sample_method:
-                            select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path, "v_sample", v_),
-                                                                         param["time_func"])
-                            writeToResultFile(dataset, v_, storage_method, select_time, space_cost / 1000)
-                            print(dataset, v_, storage_method, select_time, space_cost / 1000)
-                            time.sleep(5)
-                            space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
-                            print(space_cost)
-                            time.sleep(2)
-                            space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
-                            print(space_cost)
-                            time.sleep(2)
-                            space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
-                            print(space_cost)
+        dataset_path = os.path.join(dataset_root, dataset, param["file_dir"])
+        for storage_method in ["AutoAlgined"]:#"AutoAlgined" "Algined"
+            if storage_method == "AutoAlgined":#单独运行后面的部分，则可以按照groupcsv的结果，将时间序列按照文件中的输出结果分组存储，这里增加QueryTime用的
+                select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path, "v_sample", "v_sample10000"),
+                                                             param["time_func"])
+
+                print(dataset, "ok", storage_method, select_time, space_cost / 1000)
+                time.sleep(2)
+                space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
+                print(space_cost)
+                time.sleep(2)
+                space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
+                print(space_cost)
+                time.sleep(2)
+                space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
+                print(space_cost)
+                #writeToResultFile(dataset, "ok", storage_method, select_time, space_cost / 1000)

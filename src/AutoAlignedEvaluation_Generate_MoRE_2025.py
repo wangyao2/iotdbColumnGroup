@@ -51,6 +51,12 @@ def runDataset_aligned(dataset, dataset_path, time_func):
         dfs.append(c_df)
     df = pd.concat(dfs, ignore_index=True)# 使用concat合并所有DataFrame
 
+    # # todo 方的样本数据太少了，我们手动扩充样本数量
+    # copyies = 0 #样本数量太少了，再复制一坨
+    # # 复制五份并拼接
+    # df = pd.concat([df] + [df.copy() for _ in range(copyies)], ignore_index=True)
+    # print(f"最终DataFrame大小: {df.shape}")
+
     local_schema = np.array(df.columns)[1:]
     for i in range(len(local_schema)):
         local_schema[i] = local_schema[i] + str(index)
@@ -63,27 +69,42 @@ def runDataset_aligned(dataset, dataset_path, time_func):
     device_data = np.array(df)
 
     # 1 处理时间戳列，转化为长整型
-    for i in range(len(device_data[:, 0])):
-        if time_func == 0:
-            device_data[i, 0] = string_to_timestamp_0(device_data[i, 0])
-        elif time_func == 1:
-            device_data[i, 0] = string_to_timestamp_1(device_data[i, 0])
-        elif time_func == 5:
-            device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
-        elif time_func == 2:
-            device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
-        elif time_func == 6:
-            device_data[i, 0] = string_to_timestamp_6(device_data[i, 0])
-        else:
-            device_data[i, 0] = int(device_data[i, 0])
+    GenerateTimeFalg = 1
+    if GenerateTimeFalg:
+        #1.1 读取另外的时间戳
+        n_rows_needed = len(df)
+        time_stamps = pd.read_csv(
+            "timeG.csv",
+            usecols=['timestamp'],  # 只读取需要的列
+            nrows=n_rows_needed,  # 只读取需要的行数
+            dtype={'timestamp': np.int64}  # 使用高效数据类型
+        )['timestamp'].values  # 转换为NumPy数组以节省内存
+        if len(time_stamps) < n_rows_needed:
+            raise ValueError(f"timeG.csv只包含{len(time_stamps)}行，少于需要的{n_rows_needed}行")
+        device_data[:, 0] = time_stamps  # 第1列索引为0
+    else:
+        #1.2 使用原始的时间戳数据
+        for i in range(len(device_data[:, 0])):
+            if time_func == 0:
+                device_data[i, 0] = string_to_timestamp_0(device_data[i, 0])
+            elif time_func == 1:
+                device_data[i, 0] = string_to_timestamp_1(device_data[i, 0])
+            elif time_func == 5:
+                device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
+            elif time_func == 2:
+                device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
+            elif time_func == 6:
+                device_data[i, 0] = string_to_timestamp_6(device_data[i, 0])
+            else:
+                device_data[i, 0] = int(device_data[i, 0])
     # 2 准备数值列
     data_all.append(device_data[:, 1:])
     timestamp_all.append(device_data[:, 0])
 
     measurements_lst_ = list(global_schema)
-    data_type_lst_ = global_data_type
-    encoding_lst_ = [TSEncoding.PLAIN for _ in range(len(data_type_lst_))]
-    compressor_lst_ = [Compressor.SNAPPY for _ in range(len(data_type_lst_))]
+    data_type_lst_ = [TSDataType.DOUBLE for _ in range(len(measurements_lst_))]
+    encoding_lst_ = [TSEncoding.PLAIN for _ in range(len(measurements_lst_))]
+    compressor_lst_ = [Compressor.SNAPPY for _ in range(len(measurements_lst_))]
 
     session.create_aligned_time_series(
         "root.sg_al_01.d1", measurements_lst_, data_type_lst_, encoding_lst_, compressor_lst_
@@ -100,7 +121,7 @@ def runDataset_aligned(dataset, dataset_path, time_func):
             continue
 
         measurements_list_ = [local_schema for _ in range(len(values_))]
-        data_type_list_ = [local_data_types[i] for _ in range(len(values_))]#非nan的个数
+        data_type_list_ = [data_type_lst_ for _ in range(len(values_))]#非nan的个数
         device_ids = ["root.sg_al_01.d1" for _ in range(len(values_))]#不用动
 
         #如果我增加这一段空值处理的话，方师兄的样例程序就没法正常输出结果，没法产生那个group.csv文件
@@ -150,6 +171,8 @@ def runDataset_aligned(dataset, dataset_path, time_func):
     time.sleep(1)
     session.execute_non_query_statement("flush")
     time.sleep(1)
+    session.execute_non_query_statement("merge")
+    time.sleep(1)
     session.close()
     print("over")
     return 0, 0
@@ -158,6 +181,14 @@ def clear_grouping_message():
     if os.path.isfile("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv"):
         print("分组文件已存在，已删除....")
         os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv")
+
+def folderSize(folder_path):
+    size = 0
+    for path, dirs, files in os.walk(folder_path):
+        for f in files:
+            fp = os.path.join(path, f)
+            size += os.path.getsize(fp)
+    return size
 
 if __name__ == "__main__":
 
@@ -188,17 +219,13 @@ if __name__ == "__main__":
         },
         "Vehicle2": {
             "file_dir": "",
-            "time_func": 0,
+            "time_func": 0, #0
         },
         "Train": {
             "file_dir": "",
             "time_func": -1,
         },
         "Chemistry": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "Vehicle": {
             "file_dir": "",
             "time_func": 5,
         },
@@ -243,9 +270,9 @@ if __name__ == "__main__":
     #只包含了数据写入程序
     # datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBMM2","TBM2_120000"]
-    datasets = ["WindTurbine"]
+    datasets = ["Vehicle2"]
 
-    dataset_root = "dataset2"
+    dataset_root = "dataset"
     print("只导入数据，生成分组结果")
     print(datasets)
     for dataset in datasets:
@@ -254,3 +281,6 @@ if __name__ == "__main__":
         select_time, space_cost = runDataset_aligned(dataset,
                                                      os.path.join(dataset_path, "v_sample", "v_sample10000"),
                                                      param["time_func"])
+        time.sleep(2)
+        space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
+        print("空间开销 ",space_cost / 1000)
