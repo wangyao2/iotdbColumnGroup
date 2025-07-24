@@ -59,18 +59,19 @@ def folderSize(folder_path):
 
     return size
 
-def writeToResultFile(dataset, sample_method, storage_method, select_time, space_cost, flush_time = ""):
-    res_file_dir = "/src/esult-autoaligned.csv"
+def writeToResultFile(dataset, storage_method, select_time, space_cost):
+    # 结果文件路径
+    res_file_dir = r"F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\esult-autoaligned-2025.csv"
+    # 准备写入内容 - 所有参数用逗号分隔
+    line = f"{dataset},{storage_method},{select_time},{space_cost}"
+    # 检查文件是否存在
     if not os.path.exists(res_file_dir):
-        res_df = pd.DataFrame(columns=["dataset", "sample_method", "storage_method", "select_time", "space_cost", "flush_time"])
-    else:
-        res_df = pd.read_csv(res_file_dir)
-
-    if storage_method == "autoaligned":
-        flush_time = 3
-        #flush_time = compute_flush_time()
-    res_df.loc[res_df.shape[0]] = [dataset, sample_method, storage_method, select_time, space_cost, flush_time]
-    res_df.to_csv(res_file_dir, index=False)
+        # 创建文件并写入标题
+        with open(res_file_dir, 'w') as f:
+            f.write("dataset,storage_method,select_time,space_cost\n")
+    # 以追加模式写入文件
+    with open(res_file_dir, 'a') as f:
+        f.write(line + '\n')
 
 def findPaths(session):
     res = session.execute_query_statement("show timeseries")
@@ -80,7 +81,7 @@ def findPaths(session):
         paths.add(path)
     return list(paths)
 
-def runDataset_autoaligned(dataset, dataset_path, time_func):
+def runDataset_autoaligned(dataset, dataset_path, time_func, loadinfile):
     #按照分组结果，计算数据在分组条件下的空间消耗
     ##批注，============增加元数据的字典排序，还有单列数据的插入功能
     column_map, group_list, single_columns = generateColumnMap()
@@ -135,19 +136,49 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
     local_data_types.append(local_data_type)
 
     device_data = np.array(df)
-    for i in range(len(device_data[:, 0])):
-        if time_func == 0:
-            device_data[i, 0] = string_to_timestamp_0(device_data[i, 0])
-        elif time_func == 1:
-            device_data[i, 0] = string_to_timestamp_1(device_data[i, 0])
-        elif time_func == 5:
-            device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
-        elif time_func == 2:
-            device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
-        elif time_func == 6:
-            device_data[i, 0] = string_to_timestamp_6(device_data[i, 0])
+
+    # 1 处理时间戳列，转化为长整型
+    GenerateTimeFalg = loadinfile
+    if GenerateTimeFalg:
+        if dataset.startswith("Climate"):
+            #1.1 读取另外的时间戳
+            n_rows_needed = len(df)
+            time_stamps = pd.read_csv(
+                "timeG_Climate.csv",
+                usecols=['timestamp'],  # 只读取需要的列
+                nrows=n_rows_needed,  # 只读取需要的行数
+                dtype={'timestamp': np.int64}  # 使用高效数据类型
+            )['timestamp'].values  # 转换为NumPy数组以节省内存
+            if len(time_stamps) < n_rows_needed:
+                raise ValueError(f"timeG.csv只包含{len(time_stamps)}行，少于需要的{n_rows_needed}行")
+            device_data[:, 0] = time_stamps  # 第1列索引为0
         else:
-            device_data[i, 0] = int(device_data[i, 0])
+            # 1.1 读取另外的时间戳
+            n_rows_needed = len(df)
+            time_stamps = pd.read_csv(
+                "timeG.csv",
+                usecols=['timestamp'],  # 只读取需要的列
+                nrows=n_rows_needed,  # 只读取需要的行数
+                dtype={'timestamp': np.int64}  # 使用高效数据类型
+            )['timestamp'].values  # 转换为NumPy数组以节省内存
+            if len(time_stamps) < n_rows_needed:
+                raise ValueError(f"timeG.csv只包含{len(time_stamps)}行，少于需要的{n_rows_needed}行")
+            device_data[:, 0] = time_stamps  # 第1列索引为0
+    else:
+        # 1.2 使用原始的时间戳数据
+        for i in range(len(device_data[:, 0])):
+            if time_func == 0:
+                device_data[i, 0] = string_to_timestamp_0(device_data[i, 0])
+            elif time_func == 1:
+                device_data[i, 0] = string_to_timestamp_1(device_data[i, 0])
+            elif time_func == 5:
+                device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
+            elif time_func == 2:
+                device_data[i, 0] = string_to_timestamp_2(device_data[i, 0])
+            elif time_func == 6:
+                device_data[i, 0] = string_to_timestamp_6(device_data[i, 0])
+            else:
+                device_data[i, 0] = int(device_data[i, 0])
 
     data_all.append(device_data[:, 1:])
     timestamp_all.append(device_data[:, 0])
@@ -298,101 +329,22 @@ def runDataset_autoaligned(dataset, dataset_path, time_func):
 
 if __name__ == "__main__":
 
-    parameters = {
-        "WindTurbine": {
-            "file_dir": "",
-            "time_func": 2,
-        },
-        "TBMM1": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "TBMM2": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "TBM3": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "TBM4": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "TBM5": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "Climate": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "Ship": {
-            "file_dir": "",
-            "time_func": 1,
-        },
-        "Vehicle2": {
-            "file_dir": "",
-            "time_func": 0,
-        },
-        "Train": {
-            "file_dir": "",
-            "time_func": -1,
-        },
-        "Chemistry": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "Vehicle": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "opt": {
-            "file_dir": "",
-            "time_func": 2,
-        },
-        "opt2": {
-            "file_dir": "",
-            "time_func": 2,
-        },
-        "TBM3_10000": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "TBM3_20000": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "TBM3_50000": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "TBM3_80000": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "TBM3_100000": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-        "TBM3_120000": {
-            "file_dir": "",
-            "time_func": 5,
-        },
-    }
+    #dataset_root = "dataset2"
+    dataset_root = "dataset3_generate"
+    # datasets = ["TBM3_120000","opt2","Climate", "Vehicle2", "TBMM1", "TBMM2","TBM2","TBM3_120000"]
+    # datasets = ["Vehicle2","Vehicle2_2wr","Climate", "Vehicle2", "TBMM1", "TBMM2","TBM2","TBM3"]
 
-    dataset_root = "dataset2"
-    # datasets = ["TBM2_120000","opt2","Climate", "Vehicle2", "TBMM1", "TBMM2","TBM2","TBM3"]
-    datasets = ["Vehicle2"]
+    datasets = ["TBM3_120000"]
     print("按照分组结果，写入数据库执行结果收集")
     print(datasets)
     for dataset in datasets:
-        param = parameters[dataset]
-        dataset_path = os.path.join(dataset_root, dataset, param["file_dir"])
+
+        dataset_path = os.path.join(dataset_root, dataset)
         for storage_method in ["AutoAlgined"]:#"AutoAlgined" "Algined"
             if storage_method == "AutoAlgined":#单独运行后面的部分，则可以按照groupcsv的结果，将时间序列按照文件中的输出结果分组存储，这里增加QueryTime用的
-                select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path, "v_sample", "v_sample10000"),
-                                                             param["time_func"])
+                select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path),
+                                                                 5,
+                                                                 0)
 
                 print(dataset, "ok", storage_method, select_time, space_cost / 1000)
                 time.sleep(2)
@@ -404,4 +356,11 @@ if __name__ == "__main__":
                 time.sleep(2)
                 space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
                 print(space_cost)
-                #writeToResultFile(dataset, "ok", storage_method, select_time, space_cost / 1000)
+                writeToResultFile(dataset, storage_method, select_time, space_cost / 1000)
+    '''
+      TBM3_20000 用时间函数5，不引入时间戳文件 loadinfile 0，实验结果和旧版本一致
+      Vehicle2 用生成的时间戳,需要引入时间戳文件文件 loadinfile 1， 并且扩充了新版的
+      Vehicle_origin Vehicle_origin_3wr 用时间函数0，引入时间戳文件 loadinfile 1 是最原始的Fang数据集，无任何改动的
+      TBMM1 用时间函数5 不引入时间戳文件 0 使用旧版数据结果
+      Climate 数据集没有额外说法，随便输入参数都可以 但是 loadinfile 1
+    '''

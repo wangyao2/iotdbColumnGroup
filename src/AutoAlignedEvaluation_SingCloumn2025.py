@@ -1,18 +1,84 @@
-import numpy as np
-'''
-2025年新版测试实验文件
-函数功能，以单个列组的方式把数据集写入到数据库中
-用于向IDEA服务端直接写入测试数据
-第一步，先使用这个py文件向IDEA中写入列组数据，然后 IDEA会输出列组结果
-这一个客户端文件里面，会生成更多的行的数据，把数据复制多份，扩充到和方的论文规模一致
-'''
+
 from iotdb.Session import Session
 from iotdb.utils.IoTDBConstants import TSDataType, TSEncoding, Compressor
+from iotdb.utils.Tablet import Tablet
+from numpy import printoptions
 from DatasetPreperation import *
+import operator
+
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
 
-def runDataset_aligned(dataset, dataset_path, time_func,loadinfile):
+def generateColumnMap():
+    group_file = "iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv"
+    with open(group_file, "r") as f:
+        lines = f.readlines()
+    group_num = 0
+    column_map = {}
+    single_columns = []
+    for line in lines:
+        line = line.replace("\n", "")
+        check_new_group_flag = False
+        cols = line.split(",")
+        if len(cols) == 1:
+            col = cols[0]
+            if col not in column_map:
+                single_columns.append(col)
+                column_map[col] = -1
+            continue
+        for col in cols:
+            if col not in column_map:
+                column_map[col] = group_num
+                check_new_group_flag = True
+        if check_new_group_flag:
+            group_num += 1
+
+    group_list = []
+    for i in range(group_num):
+        group_list.append([])
+
+    for col in column_map:
+        if column_map[col] >= 0:
+            group_list[column_map[col]].append(col)
+    return column_map, group_list, single_columns
+
+def folderSize(folder_path):
+    # assign size
+    size = 0
+
+    # get size
+    for path, dirs, files in os.walk(folder_path):
+        for f in files:
+            fp = os.path.join(path, f)
+            size += os.path.getsize(fp)
+
+    return size
+
+def writeToResultFile(dataset, storage_method, select_time, space_cost):
+    res_file_dir = "F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\esult-autoaligned.csv"
+    # 结果文件路径
+    res_file_dir = r"F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdbColumnExpr\src\esult-autoaligned-2025.csv"
+    # 准备写入内容 - 所有参数用逗号分隔
+    line = f"{dataset},{storage_method},{select_time},{space_cost}"
+    # 检查文件是否存在
+    if not os.path.exists(res_file_dir):
+        # 创建文件并写入标题
+        with open(res_file_dir, 'w') as f:
+            f.write("dataset,storage_method,select_time,space_cost\n")
+    # 以追加模式写入文件
+    with open(res_file_dir, 'a') as f:
+        f.write(line + '\n')
+
+def findPaths(session):
+    res = session.execute_query_statement("show timeseries")
+    paths = set()
+    for ts in res.todf()["timeseries"]:
+        path = "root.sg_At_01." + ts.split(".")[3]
+        paths.add(path)
+    return list(paths)
+
+def runDataset_column(dataset, dataset_path, time_func,loadinfile):
+
     file_list = [f for f in os.listdir(dataset_path) if f.endswith(".csv")]
     storage_group = "root.sg_al_01"
     index = 1
@@ -49,13 +115,7 @@ def runDataset_aligned(dataset, dataset_path, time_func,loadinfile):
         file_path = os.path.join(dataset_path, file_path)
         c_df = pd.read_csv(file_path, engine='python')
         dfs.append(c_df)
-    df = pd.concat(dfs, ignore_index=True)# 使用concat合并所有DataFrame
-
-    # # todo 方的样本数据太少了，我们手动扩充样本数量
-    # copyies = 0 #样本数量太少了，再复制一坨
-    # # 复制五份并拼接
-    # df = pd.concat([df] + [df.copy() for _ in range(copyies)], ignore_index=True)
-    # print(f"最终DataFrame大小: {df.shape}")
+    df = pd.concat(dfs, ignore_index=True)  # 使用concat合并所有DataFrame
 
     local_schema = np.array(df.columns)[1:]
     for i in range(len(local_schema)):
@@ -68,7 +128,7 @@ def runDataset_aligned(dataset, dataset_path, time_func,loadinfile):
     global_data_type = global_data_type + local_data_type
     device_data = np.array(df)
 
-    # 1 处理时间戳列，转化为长整型，这里的很多判断都是专门针对数据集的特点设计的
+    # 1 处理时间戳列，转化为长整型
     GenerateTimeFalg = loadinfile
     if GenerateTimeFalg:
         if dataset.startswith("Climate"):
@@ -84,7 +144,7 @@ def runDataset_aligned(dataset, dataset_path, time_func,loadinfile):
                 raise ValueError(f"timeG.csv只包含{len(time_stamps)}行，少于需要的{n_rows_needed}行")
             device_data[:, 0] = time_stamps  # 第1列索引为0
         else:
-            #1.1 读取另外的时间戳
+            # 1.1 读取另外的时间戳
             n_rows_needed = len(df)
             time_stamps = pd.read_csv(
                 "timeG.csv",
@@ -96,10 +156,10 @@ def runDataset_aligned(dataset, dataset_path, time_func,loadinfile):
                 raise ValueError(f"timeG.csv只包含{len(time_stamps)}行，少于需要的{n_rows_needed}行")
             device_data[:, 0] = time_stamps  # 第1列索引为0
     else:
-        #1.2 使用原始的时间戳数据
+        # 1.2 使用原始的时间戳数据
         for i in range(len(device_data[:, 0])):
-            if dataset == "TBMM1_3wr":
-                device_data[i, 0] = string_to_timestamp_5(device_data[i, 0])
+            if time_func == 0:
+                device_data[i, 0] = string_to_timestamp_0(device_data[i, 0])
             elif time_func == 1:
                 device_data[i, 0] = string_to_timestamp_1(device_data[i, 0])
             elif time_func == 5:
@@ -110,16 +170,6 @@ def runDataset_aligned(dataset, dataset_path, time_func,loadinfile):
                 device_data[i, 0] = string_to_timestamp_6(device_data[i, 0])
             else:
                 device_data[i, 0] = int(device_data[i, 0])
-
-    if dataset.startswith("TBMM1_"):
-        n_rows_needed = len(df)
-        time_stamps = \
-        pd.read_csv("timeG2.csv", usecols=['timestamp'], nrows=n_rows_needed, dtype={'timestamp': np.int64}  # 使用高效数据类型
-                    )['timestamp'].values  # 转换为NumPy数组以节省内存
-        if len(time_stamps) < n_rows_needed:
-            raise ValueError(f"timeG.csv只包含{len(time_stamps)}行，少于需要的{n_rows_needed}行")
-        device_data[9900:, 0] = time_stamps[9900:]
-
     # 2 准备数值列
     data_all.append(device_data[:, 1:])
     timestamp_all.append(device_data[:, 0])
@@ -129,8 +179,12 @@ def runDataset_aligned(dataset, dataset_path, time_func,loadinfile):
     encoding_lst_ = [TSEncoding.PLAIN for _ in range(len(measurements_lst_))]
     compressor_lst_ = [Compressor.SNAPPY for _ in range(len(measurements_lst_))]
 
-    session.create_aligned_time_series(
-        "root.sg_al_01.d1", measurements_lst_, data_type_lst_, encoding_lst_, compressor_lst_
+    ts_path_lst_ = []
+    for mesurement in measurements_lst_:
+        ts_path_lst_.append("root.sg_al_01.d1." + mesurement)
+
+    session.create_multi_time_series(
+        ts_path_lst_, data_type_lst_, encoding_lst_, compressor_lst_
     )
 
     for i in range(len(data_all)):
@@ -144,8 +198,9 @@ def runDataset_aligned(dataset, dataset_path, time_func,loadinfile):
             continue
 
         measurements_list_ = [local_schema for _ in range(len(values_))]
+        # todo 数据类型写入有问题
         data_type_list_ = [data_type_lst_ for _ in range(len(values_))]#非nan的个数
-        device_ids = ["root.sg_al_01.d1" for _ in range(len(values_))]#不用动
+        device_ids = ["root.sg_al_01.d1" for _ in range(len(values_))]
 
         #如果我增加这一段空值处理的话，方师兄的样例程序就没法正常输出结果，没法产生那个group.csv文件
         DeleteList = []#把全空的行记录下来，等会要删除掉
@@ -174,7 +229,7 @@ def runDataset_aligned(dataset, dataset_path, time_func,loadinfile):
 
             NoOfLine = NoOfLine + 1  # 行号自增1
 
-        print("完成了几行转换：" + str(NoOfLine))
+        print("完成了几行转换" + str(NoOfLine))
         print("无效行数为：" + str(len(DeleteList)))
         device_ids = [value for index, value in enumerate(device_ids)
                       if index not in set(DeleteList)]
@@ -186,66 +241,128 @@ def runDataset_aligned(dataset, dataset_path, time_func,loadinfile):
                       if index not in set(DeleteList)]
         values_ = [value for index, value in enumerate(values_)
                       if index not in set(DeleteList)]
-        session.insert_aligned_records(
+        session.insert_records(
             device_ids, timestamps_, measurements_list_, data_type_list_, values_
         )
 
-    print("完成插入，即将开始刷写")
+    print("start flush")
     time.sleep(1)
-    session.execute_non_query_statement("flush")
-    time.sleep(1)
-    session.execute_non_query_statement("merge")
-    time.sleep(1)
-    session.close()
-    print("over")
-    return 0, 0
+    session.execute_non_query_statement(
+        "flush"
+    )
 
-def clear_grouping_message():
-    if os.path.isfile("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv"):
-        print("分组文件已存在，已删除....")
-        os.remove("iotdb-server-and-cli/iotdb-server-autoalignment/sbin/grouping_results.csv")
+    time.sleep(1)
+    print("start select")
+    session.execute_non_query_statement(
+        "merge"
+    )
+    start_select_time = time.time()
+    session.execute_query_statement(
+        "select * from root.sg_al_01.d1"
+    )
+    end_select_time = time.time()
+    select_time = end_select_time - start_select_time
+    space_cost = folderSize(database_file_path)
+    return select_time, space_cost
 
-def folderSize(folder_path):
-    size = 0
-    for path, dirs, files in os.walk(folder_path):
-        for f in files:
-            fp = os.path.join(path, f)
-            size += os.path.getsize(fp)
-    return size
 
 if __name__ == "__main__":
 
-    try:
-        clear_grouping_message()
-    finally:
-        pass
-    #只包含了数据写入程序
-    # datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBMM2","TBM3_120000"]
-    dataset_root = "dataset3_generate"
-    # datasets = ["Vehicle2_2wr","Vehicle2_3wr","Climate", "Vehicle2", "TBMM1", "TBMM1_2wr","TBM2","TBM3_20000"]
-    datasets = ["Climate"]
+    parameters = {
+        "WindTurbine": {
+            "file_dir": "",
+            "time_func": 2,
+        },
+        "TBM": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM2": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM3": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "Climate": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "Ship": {
+            "file_dir": "",
+            "time_func": 1,
+        },
+        "Vehicle2": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "Train": {
+            "file_dir": "",
+            "time_func": -1,
+        },
+        "Chemistry": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "Vehicle": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "opt": {
+            "file_dir": "",
+            "time_func": 2,
+        },
+        "opt2": {
+            "file_dir": "",
+            "time_func": 2,
+        },
+        "TBMM1": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBMM2": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM3_20000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM3_50000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM3_80000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM3_100000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+        "TBM3_120000": {
+            "file_dir": "",
+            "time_func": 5,
+        },
+    }
 
-    print("只导入数据，生成分组结果")
-    print(datasets)
+    #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
+    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3", Vehicle_origin_3wr ，Vehicle2_5wr ]
+    dataset_root = "dataset3_generate"
+    datasets = ["Climate"]
     for dataset in datasets:
         dataset_path = os.path.join(dataset_root, dataset)
-        select_time, space_cost = runDataset_aligned(dataset,
-                                                     os.path.join(dataset_path),
-                                                     5,
-                                                     1
-                                                     )
-        time.sleep(2)
-        space_cost = folderSize(r"F:\Workspcae\IdeaWorkSpace\IotDBMaster2\iotdb-0-13-4-ColumnResearch\data\data")
-        print("Idea中空间开销 ",space_cost / 1000)
-        space_cost = folderSize(r"iotdb-server-and-cli/iotdb-server-single/data/data")
-        print("IoTDB中空间开销 ",space_cost / 1000)
-
+        port_ = "6667"  # autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
+        select_time, space_cost = runDataset_column(dataset, os.path.join(dataset_path),
+                                                    5,1)
+        print(dataset, "ok", "single", select_time, space_cost / 1000)
+        writeToResultFile(dataset, "single", select_time, space_cost / 1000)
     '''
       TBM3_20000 用时间函数5，不引入时间戳文件 loadinfile 0，实验结果和旧版本一致
-      Vehicle2 Vehicle2_3wr 用生成的时间戳,需要引入时间戳文件文件 loadinfile 1， 并且扩充了新版的更多的数据
-      Vehicle_origin，Vehicle_origin_3wr 用时间函数0，引入时间戳文件 loadinfile 1 是最原始的Fang数据集，无任何改动的
+      Vehicle2 用生成的时间戳,需要引入时间戳文件文件 loadinfile 1， 并且扩充了新版的
+      Vehicle_origin Vehicle_origin_3wr 用时间函数0，引入时间戳文件 loadinfile 1 是最原始的Fang数据集，无任何改动的
       TBMM1 用时间函数5 不引入时间戳文件 0 使用旧版数据结果
-      Climate 要填充时间戳 loadinfile 1 
-      TBMM1_3wr， 手动填充一些时间戳进去，前9900行用原始时间戳，后面的用填充时间戳（弃用）
+      Climate 数据集没有额外说法，随便输入参数都可以，但是要求 loadinfile 1 
+
     '''

@@ -287,7 +287,7 @@ if __name__ == "__main__":
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBMM2","TBM2_120000"]
     dataset_root = "dataset"
-    datasets = ["Vehicle2"]
+    datasets = ["TBM3_20000"]
     print("只导入数据，生成分组结果")
     print(datasets)
     for dataset in datasets:
