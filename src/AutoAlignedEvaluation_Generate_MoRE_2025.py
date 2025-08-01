@@ -214,6 +214,36 @@ def folderSize(folder_path):
     return size
 
 if __name__ == "__main__":
+    parameters = {
+        "TBM3_120000": {
+            "time_func": 5,
+            "loadinfile": 0,
+        },
+        "Vehicle2_5wr": {
+            "time_func": 5,
+            "loadinfile": 1,
+        },
+        "Vehicle_origin_3wr": {
+            "time_func": 5,
+            "loadinfile": 1,
+        },
+        "Climate": {
+            "time_func": 5,
+            "loadinfile": 1,
+        },
+        "Climate_2wr": {
+            "time_func": 5,
+            "loadinfile": 1,
+        },
+        "Climate_origin": {
+            "time_func": 5,
+            "loadinfile": 0,
+        },
+        "TBMM1": {
+            "time_func": 5,
+            "loadinfile": 0,
+        },
+    }
 
     try:
         clear_grouping_message()
@@ -221,18 +251,23 @@ if __name__ == "__main__":
         pass
     #只包含了数据写入程序
     # datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
-    # datasets = ["opt","opt2","Climate", "Vehicle2", "TBMM1","TBMM2","TBM3_120000"]
+    # datasets = ["Vehicle2_5wr","TBM3_120000","Vehicle_origin_3wr", "Climate", "TBMM1"
     dataset_root = "dataset3_generate"
     # datasets = ["Vehicle2_2wr","Vehicle2_3wr","Climate", "Vehicle2", "TBMM1", "TBMM1_2wr","TBM2","TBM3_20000"]
-    datasets = ["Climate"]
+    # Vehicle_5wr_5Null
+    datasets = ["Vehicle2_5wr"]
 
     print("只导入数据，生成分组结果")
     print(datasets)
     for dataset in datasets:
+        # param = parameters[dataset]
+        # timeFun = param["time_func"]
+        # loadinfile_ = param["loadinfile"]
+
         dataset_path = os.path.join(dataset_root, dataset)
         select_time, space_cost = runDataset_aligned(dataset,
                                                      os.path.join(dataset_path),
-                                                     5,
+                                                     0,
                                                      1
                                                      )
         time.sleep(2)
@@ -242,10 +277,17 @@ if __name__ == "__main__":
         print("IoTDB中空间开销 ",space_cost / 1000)
 
     '''
-      TBM3_20000 用时间函数5，不引入时间戳文件 loadinfile 0，实验结果和旧版本一致
-      Vehicle2 Vehicle2_3wr 用生成的时间戳,需要引入时间戳文件文件 loadinfile 1， 并且扩充了新版的更多的数据
-      Vehicle_origin，Vehicle_origin_3wr 用时间函数0，引入时间戳文件 loadinfile 1 是最原始的Fang数据集，无任何改动的
+      填充数据集的参数说明
+      TBM3_120000 用时间函数5，不引入时间戳文件 loadinfile 0，实验结果和旧版本一致
+      Vehicle2 Vehicle2_3wr Vehicle2_5wr 用生成的时间戳,需要引入时间戳文件文件 loadinfile 1， 并且扩充了新版的更多的数据
+      Vehicle_origin，Vehicle_origin_3wr 用时间函数0，引入时间戳文件 loadinfile 1 是最原始的Fang数据集，无任何改动的 对应Car Engine
       TBMM1 用时间函数5 不引入时间戳文件 0 使用旧版数据结果
       Climate 要填充时间戳 loadinfile 1 
-      TBMM1_3wr， 手动填充一些时间戳进去，前9900行用原始时间戳，后面的用填充时间戳（弃用）
+      
+      Vehicle_5wr_5Null 内的数据文件，全都是用引入时间戳文件 loadinfile 1 这个在字典里面没有，需要手动填充
+      TBM3_120000_25Null 内的数据文件，全都使用自身的 时间戳信息 确保timefunc 5 不引入额外文件 loadinfile 0 
+      
+      
+      TBMM1_3wr（弃用）， 手动填充一些时间戳进去，前9900行用原始时间戳，后面的用填充时间戳（弃用）
     '''
+    #todo 把生成的空值结果替换上去，然后看看TBM3的数据集，近似计算无法获得的结果

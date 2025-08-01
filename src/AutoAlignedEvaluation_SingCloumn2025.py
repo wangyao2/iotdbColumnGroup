@@ -350,12 +350,13 @@ if __name__ == "__main__":
     #datasets = ["Vehicle", "WindTurbine", "Ship", "Train", "Climate", "Vehicle2", "Chemistry"]
     # datasets = ["opt","opt2","Climate", "Vehicle2", "TBM","TBM2","TBM3", Vehicle_origin_3wr ，Vehicle2_5wr ]
     dataset_root = "dataset3_generate"
-    datasets = ["Climate"]
+    datasets = ["Vehicle_origin_7wr"]
     for dataset in datasets:
         dataset_path = os.path.join(dataset_root, dataset)
         port_ = "6667"  # autoaligned带有自动对齐序列的IOTDB的端口，先用aligned方法把所有数据写入到论文数据库（6667）中，仍然使用aligned，然后分析获得的结果，然后再重新写入到普通数据库（6668）当中
         select_time, space_cost = runDataset_column(dataset, os.path.join(dataset_path),
-                                                    5,1)
+                                                    0,
+                                                    1)
         print(dataset, "ok", "single", select_time, space_cost / 1000)
         writeToResultFile(dataset, "single", select_time, space_cost / 1000)
     '''
@@ -365,4 +366,7 @@ if __name__ == "__main__":
       TBMM1 用时间函数5 不引入时间戳文件 0 使用旧版数据结果
       Climate 数据集没有额外说法，随便输入参数都可以，但是要求 loadinfile 1 
 
+      Vehicle_5wr_5Null 内的数据文件，全都是用引入时间戳文件 loadinfile 1 这个在字典里面没有，需要手动填充
+      TBM3_120000_25Null 内的数据文件，全都使用自身的 时间戳信息 确保timefunc 5 不引入额外文件 loadinfile 0 
+      
     '''

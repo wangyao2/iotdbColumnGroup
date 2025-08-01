@@ -328,23 +328,53 @@ def runDataset_autoaligned(dataset, dataset_path, time_func, loadinfile):
     return select_time, space_cost
 
 if __name__ == "__main__":
-
+    parameters = {
+        "TBM3_120000": {
+            "time_func": 5,
+            "loadinfile": 0,
+        },
+        "Vehicle2_5wr": {
+            "time_func": 5,
+            "loadinfile": 1,
+        },
+        "Vehicle_origin_3wr": {
+            "time_func": 5,
+            "loadinfile": 1,
+        },
+        "Climate": {
+            "time_func": 5,
+            "loadinfile": 1,
+        },
+        "Climate_origin": {
+            "time_func": 5,
+            "loadinfile": 0,
+        },
+        "TBMM1": {
+            "time_func": 5,
+            "loadinfile": 0,
+        },
+    }
     #dataset_root = "dataset2"
     dataset_root = "dataset3_generate"
     # datasets = ["TBM3_120000","opt2","Climate", "Vehicle2", "TBMM1", "TBMM2","TBM2","TBM3_120000"]
     # datasets = ["Vehicle2","Vehicle2_2wr","Climate", "Vehicle2", "TBMM1", "TBMM2","TBM2","TBM3"]
+    # datasets = ["Vehicle2_5wr","TBM3_120000","Vehicle_origin_3wr", "Climate", "TBMM1"
+    # datasets = ["Climate_origin"]
+    datasets = ["Vehicle_origin_7wr"]
 
-    datasets = ["TBM3_120000"]
     print("按照分组结果，写入数据库执行结果收集")
     print(datasets)
     for dataset in datasets:
+        # param = parameters[dataset]
+        # timeFun = param["time_func"]
+        # loadinfile_ = param["loadinfile"]
 
         dataset_path = os.path.join(dataset_root, dataset)
         for storage_method in ["AutoAlgined"]:#"AutoAlgined" "Algined"
             if storage_method == "AutoAlgined":#单独运行后面的部分，则可以按照groupcsv的结果，将时间序列按照文件中的输出结果分组存储，这里增加QueryTime用的
                 select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path),
-                                                                 5,
-                                                                 0)
+                                                                 0,
+                                                                 1)
 
                 print(dataset, "ok", storage_method, select_time, space_cost / 1000)
                 time.sleep(2)
@@ -358,9 +388,15 @@ if __name__ == "__main__":
                 print(space_cost)
                 writeToResultFile(dataset, storage_method, select_time, space_cost / 1000)
     '''
-      TBM3_20000 用时间函数5，不引入时间戳文件 loadinfile 0，实验结果和旧版本一致
-      Vehicle2 用生成的时间戳,需要引入时间戳文件文件 loadinfile 1， 并且扩充了新版的
+      TBM3_120000 用时间函数5，不引入时间戳文件 loadinfile 0，实验结果和旧版本一致
+      Vehicle2_5wr 用生成的时间戳,需要引入时间戳文件文件 loadinfile 1， 并且扩充了新版的
       Vehicle_origin Vehicle_origin_3wr 用时间函数0，引入时间戳文件 loadinfile 1 是最原始的Fang数据集，无任何改动的
       TBMM1 用时间函数5 不引入时间戳文件 0 使用旧版数据结果
       Climate 数据集没有额外说法，随便输入参数都可以 但是 loadinfile 1
+      
+            
+      Vehicle_5wr_5Null 内的数据文件，全都是用引入时间戳文件 loadinfile 1 这个在字典里面没有，需要手动填充
+      TBM3_120000_25Null 内的数据文件，全都使用自身的 时间戳信息 确保timefunc 5 不引入额外文件 loadinfile 0 
+      
+      
     '''
