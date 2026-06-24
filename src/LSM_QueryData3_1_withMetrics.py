@@ -126,12 +126,18 @@ def runDataset_Query_column():
     print("加载查询样式集已经完毕，准备查询...start select.")
 
     LoopQueryCount = 0#记录
-    terminateEndCondition = 900#在这里 控制修改提交的查询次数
+    terminateEndCondition = 800#在这里 控制修改提交的查询次数，原本是900次提交
 
     OverAll_select_time = 0#全局总览的查询时间，记录下全部数据的
     QurySelectTimeTrace = [] # 记录每一个查询的耗时
     AllPoints = 0#用来将留查询产生的总点数
     for oneQuery in Query_data: #获取到一行的样本集，
+        if LoopQueryCount == 150:#每65次触发一次合并
+            print("触发合并, ", LoopQueryCount)
+            time.sleep(5)# 等待合并执行，后面把这个给去掉看看效果
+            session.execute_non_query_statement("merge")
+            time.sleep(3)# 等待合并执行，后面把这个给去掉看看效果
+
         if LoopQueryCount == terminateEndCondition:
             print("循环查询被数量条件终止，设定的数量条件为: " + str(terminateEndCondition))
             break
@@ -139,17 +145,13 @@ def runDataset_Query_column():
         print("查询次数： " + str(LoopQueryCount))
         startTime = oneQuery[0]
         Intervall = oneQuery[1]
-        Intervall = Intervall * 0.8 #通过调控本参数，来实现对查询范围的调控,系数包括03 05 08 10 12
+        Intervall = Intervall * 1 #通过调控本参数，来实现对查询范围的调控,系数包括03 05 08 10 12
         # Xishu1的意思是，查询间隔基于当前时刻为多少
         endTime = startTime + int(Intervall)
         #这一块代码，增加了选择的行数和批次范围
-
-
         QuerySql = "select * from root.lsmcl01.g0.d0 where time > " + str(startTime) +" and time < " +  str(endTime)
-        #QuerySql2 = "select count(*) from root.lsmcl01.g0.d0 where time > " + startTime +" and time < " +  endTime
         print("设定的SQL语句是：" + QuerySql)
         #Sessiondataset = session.execute_query_statement(QuerySql)
-
         #统计查询时间汇总
         start_select_time = time.time()#记录每一条查询所需要的耗时
         Sessiondataset = session.execute_query_statement(QuerySql)
@@ -162,6 +164,7 @@ def runDataset_Query_column():
         column_names = Sessiondataset.get_column_names()#获取列名
         columnLength = len(column_names) - 1 #减1是因为要排除掉一个时间列
 
+        row_count2, column_count2 = 0,0
         df_output2 = Sessiondataset.todf()#直接调用todf转化成pandas结构，然后调用shape获取内部的行数
         row_count2, column_count2 = df_output2.shape
 
@@ -170,7 +173,7 @@ def runDataset_Query_column():
         AllPoints = AllPoints + OverAll_PointNums
         QurySelectTimeTrace.append(onetrace)  # 每一次查询都把查询的结果记录下来
         print("查询总点数：",str(OverAll_PointNums),"行数:",row_count2,"列数:",column_count2)#打印输出所有的查询到的点数
-        time.sleep(0.02)# 在这里控制修改每一次查询提交的时间间隔0.02s。0.3系数的查询要拉长延迟到0.04秒，不然每一个查询的到达时间不一样。1.2系数的话，要把延迟缩短到0.01,因为处理还需要时间
+        #time.sleep(0.02)# 在这里控制修改每一次查询提交的时间间隔0.02s。0.3系数的查询要拉长延迟到0.04秒，不然每一个查询的到达时间不一样。1.2系数的话，要把延迟缩短到0.01,因为处理还需要时间
 
     # for queryCostOneQuery in QurySelectTimeTrace:
     #     print(str(queryCostOneQuery))
@@ -189,5 +192,5 @@ if __name__ == "__main__":
     #list_to_csv('outputX_orignalIotdb.csv', QurySelectTimeTraceH)  _agine1 IoTDBOrignal
     #list_to_csv('DatasetQueryTrace3.csv', QurySelectTimeTraceH,"Pres","1_9MB","RenGong1"，RoundOldTime，IoTDBOrignal，TimeTired)
     list_to_csv('QueryRange_DatasetQueryTrace_XiShu08_New6.csv',
-                QurySelectTimeTraceH,"Pres","900kb","RenGong1")
+                QurySelectTimeTraceH,"oldest","900kb","RenGong1")
     # 文件名里的Xishu1的意思是，查询间隔基于当前时刻为多少，带有标记New的是新版Pres算法

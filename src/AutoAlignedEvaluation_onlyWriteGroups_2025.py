@@ -260,7 +260,7 @@ def runDataset_autoaligned(dataset, dataset_path, time_func, loadinfile):
         NoOfLine = 0
         DeleteList = []  # 把全空的行记录下来，等会要删除掉
         for oneline in values_slice:
-            # oneline 是一行数据，逐个处理每一行数据，将其空值处理掉
+            # oneline 是一行数据，逐个处理每一行数据，将其空值处s理掉
             isnan = np.isnan(oneline).tolist()  # true和false的数组
             isANum = [not x for x in isnan]
 
@@ -306,7 +306,7 @@ def runDataset_autoaligned(dataset, dataset_path, time_func, loadinfile):
         )
 
     print("完成插入，即将开始刷写")
-    time.sleep(1)
+    time.sleep(4)
     session.execute_non_query_statement("flush")
     time.sleep(2)
     session.execute_non_query_statement("merge")
@@ -318,7 +318,7 @@ def runDataset_autoaligned(dataset, dataset_path, time_func, loadinfile):
     for i in range(select_repeat_time):
         for path in paths:
             print("执行查询测试")
-            session.execute_query_statement("SELECT * FROM {}".format(path))
+            # session.execute_query_statement("SELECT * FROM {}".format(path)) #已经关闭查询
     end_select_time = time.time()
     select_time = (end_select_time - start_select_time) / select_repeat_time
     session.close()
@@ -360,7 +360,7 @@ if __name__ == "__main__":
     # datasets = ["Vehicle2","Vehicle2_2wr","Climate", "Vehicle2", "TBMM1", "TBMM2","TBM2","TBM3"]
     # datasets = ["Vehicle2_5wr","TBM3_120000","Vehicle_origin_3wr", "Climate", "TBMM1"
     # datasets = ["Climate_origin"]
-    datasets = ["Vehicle_origin_7wr"]
+    datasets = ["TBMM1"]
 
     print("按照分组结果，写入数据库执行结果收集")
     print(datasets)
@@ -373,30 +373,26 @@ if __name__ == "__main__":
         for storage_method in ["AutoAlgined"]:#"AutoAlgined" "Algined"
             if storage_method == "AutoAlgined":#单独运行后面的部分，则可以按照groupcsv的结果，将时间序列按照文件中的输出结果分组存储，这里增加QueryTime用的
                 select_time, space_cost = runDataset_autoaligned(dataset, os.path.join(dataset_path),
-                                                                 0,
-                                                                 1)
+                                                                 5,
+                                                                 0)
 
                 print(dataset, "ok", storage_method, select_time, space_cost / 1000)
                 time.sleep(2)
                 space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
                 print(space_cost)
-                time.sleep(2)
-                space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
-                print(space_cost)
-                time.sleep(2)
+                time.sleep(1)
                 space_cost = folderSize("iotdb-server-and-cli/iotdb-server-single/data/data")
                 print(space_cost)
                 writeToResultFile(dataset, storage_method, select_time, space_cost / 1000)
     '''
       TBM3_120000 用时间函数5，不引入时间戳文件 loadinfile 0，实验结果和旧版本一致
       Vehicle2_5wr 用生成的时间戳,需要引入时间戳文件文件 loadinfile 1， 并且扩充了新版的
-      Vehicle_origin Vehicle_origin_3wr 用时间函数0，引入时间戳文件 loadinfile 1 是最原始的Fang数据集，无任何改动的
+      Vehicle_origin Vehicle_origin_3wr 用时间函数0，引入时间戳文件(确认引入时间戳文件) loadinfile 1 是最原始的Fang数据集，无任何改动的
       TBMM1 用时间函数5 不引入时间戳文件 0 使用旧版数据结果
-      Climate 数据集没有额外说法，随便输入参数都可以 但是 loadinfile 1
+      Climate 数据集没有额外说法，随便输入参数都可以 但是 loadinfile 1 ，，，，2026年再测 5月份，用的是 加载0，但是 时间戳函数5
       
-            
       Vehicle_5wr_5Null 内的数据文件，全都是用引入时间戳文件 loadinfile 1 这个在字典里面没有，需要手动填充
       TBM3_120000_25Null 内的数据文件，全都使用自身的 时间戳信息 确保timefunc 5 不引入额外文件 loadinfile 0 
-      
+      Climate_origin，不加载时间戳文件，2026年5月补充
       
     '''

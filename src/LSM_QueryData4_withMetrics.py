@@ -212,7 +212,7 @@ if __name__ == "__main__":
     # list_to_csv('DatasetQueryTrace408_New1.csv',
     #             QurySelectTimeTraceH,"IOTDBsIZE", "5MB", "DTDG")
     list_to_csv('DatasetQueryTrace408_10Rings_2.csv',
-                QurySelectTimeTraceH,"RoundOldTime", "1_3MB", "DTDG")
+                QurySelectTimeTraceH,"Pres", "1_3MB", "DTDG")
     '''
     None是不执行任何合并，保持全部的小文件
     Pres 是自己编写的方法

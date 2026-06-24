@@ -168,10 +168,10 @@ def runDataset_Query_column2_WithMoreRings(dataset_path):
     for i in range(0, len(Query_data), chunk_size):
         SrewQuery_data.append(Query_data[i:i + chunk_size])
     # 子序列中的查询到达请求随意变化
-    for ChildList in SrewQuery_data:
+    for ChildList in SrewQuery_data: #按照组打散访问顺序
         random.shuffle(ChildList)
 
-    CompleteScrewData = [item for sublist in SrewQuery_data for item in sublist]
+    CompleteScrewData = [item for sublist in SrewQuery_data for item in sublist] # 把打散的组，再重新拼装成 原始的查询序列
 
     # 使用argsort对第一列进行排序，得到排序后的索引数组
     #list_to_csv(r".\GeneratedTBMQueryMode\Sorted_Pinzhuang_Query_Alldata.csv",sorted_Query_data)
@@ -232,8 +232,8 @@ if __name__ == "__main__":
     QurySelectTimeTraceH = runDataset_Query_column2_WithMoreRings(dataset_path)
     #QurySelectTimeTraceH = [1, 2, 3, 4, 5]
     #list_to_csv('outputX_orignalIotdb.csv', QurySelectTimeTraceH) RoundOldTime
-    list_to_csv('Trace408_RandomQuery005_10Rings1.csv',
-                QurySelectTimeTraceH,"RoundOldTime", "2MB", "DTDG")
+    # list_to_csv('Trace408_RandomQuery005_10Rings1.csv',
+    #             QurySelectTimeTraceH,"RoundOldTime", "2MB", "DTDG")
 
     '''
     None是不执行任何合并，保持全部的小文件

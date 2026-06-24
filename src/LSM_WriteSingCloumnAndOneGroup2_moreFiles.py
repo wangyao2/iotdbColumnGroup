@@ -1,9 +1,7 @@
 from iotdb.Session import Session
 from iotdb.utils.IoTDBConstants import TSDataType, TSEncoding, Compressor
-from iotdb.utils.Tablet import Tablet
-from numpy import printoptions
 from DatasetPreperation import *
-import operator
+
 
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
@@ -179,8 +177,8 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                 print("批次大小：" + str(batch_size))
                 print("文件总行数："  + str(linesOfTheDataset))
                 while bacthnum < linesOfTheDataset:
-                    # if count2 == 50: #控制写入的批次不要太多
-                    #     break
+                    if count2 == 50: #控制写入的批次不要太多
+                        break
                     device_i = device_ids[int(bacthnum):int(bacthnum + batch_size)]
                     timest = timestamps_[int(bacthnum):int(bacthnum + batch_size)]
                     measurements_l = measurements_list_[int(bacthnum):int(bacthnum + batch_size)]

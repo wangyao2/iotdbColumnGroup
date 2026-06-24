@@ -10,7 +10,7 @@ port_ = "6667"
 文件功能说明，将样本查询的案例，读取CSV文件文件格式为(start,interval,endtime,startQuery)，我们只读取里面的开始时间和结束时间。
 重新播放历史查询样式，提交到iotdb中执行数据查询，用于播放历史查询数据，播放单个文件的查询样式
 第3版除了播放历史查询效率之外，还要统计查询时候的
-用来播放人工数据集的查询负载样式
+用来播放人工数据集的查询负载样式，就是单纯的播放查询，不植入其他相关参数
 '''
 def folderSize(folder_path):
     # assign size
@@ -145,7 +145,7 @@ def runDataset_Query_column():
     print("加载查询样式集已经完毕，准备查询...start select.")
 
     LoopQueryCount = 0#记录
-    terminateEndCondition = 900#在这里 控制修改提交的查询次数
+    terminateEndCondition = 500#在这里 控制修改提交的查询次数
 
     OverAll_select_time = 0#全局总览的查询时间，记录下全部数据的
     QurySelectTimeTrace = [] # 记录每一个查询的耗时

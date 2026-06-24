@@ -1,9 +1,6 @@
 from iotdb.Session import Session
 from iotdb.utils.IoTDBConstants import TSDataType, TSEncoding, Compressor
-from iotdb.utils.Tablet import Tablet
-from numpy import printoptions
 from DatasetPreperation import *
-import operator
 
 database_file_path = "iotdb-server-and-cli/iotdb-server-single/data/data"
 port_ = "6667"
@@ -222,9 +219,11 @@ def runDataset_column(dataset, dataset_path, time_func, pointWether):#pointWethe
                 time.sleep(1)
                 if bacthnum % (batch_size * 10) == 0:#整10倍的时候，才写入调用刷写函数
                     print("insert One the batch is" + str(bacthnum))
+                    print("Flush once")
                     session.execute_non_query_statement(
                         "flush"
                     )
+
 
     time.sleep(2)
     print("start select")
